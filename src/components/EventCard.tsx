@@ -33,9 +33,9 @@ export const EventCard = ({ event }: EventCardProps) => {
   };
 
   return (
-    <Card className="group relative bg-card border-border overflow-hidden transition-all duration-300 hover:bg-card/80 hover:shadow-spotify cursor-pointer">
+    <Card className="group relative bg-card border-0 overflow-hidden transition-all duration-300 hover:bg-surface-hover hover:shadow-spotify-hover cursor-pointer">
       {/* Image Section */}
-      <div className="relative aspect-[16/9] overflow-hidden bg-muted">
+      <div className="relative aspect-[16/9] overflow-hidden bg-muted/50">
         <img 
           src={event.imageUrl} 
           alt={event.title}
@@ -51,16 +51,16 @@ export const EventCard = ({ event }: EventCardProps) => {
             e.stopPropagation();
             setIsSaved(!isSaved);
           }}
-          className="absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-all duration-200 hover:scale-110"
+          className="absolute top-3 right-3 p-2 rounded-full bg-background/60 backdrop-blur-md hover:bg-background/80 transition-all duration-200 hover:scale-110 opacity-0 group-hover:opacity-100"
         >
           <Heart 
-            className={`h-4 w-4 transition-all ${isSaved ? 'fill-primary text-primary' : 'text-muted-foreground'}`}
+            className={`h-4 w-4 transition-all ${isSaved ? 'fill-primary text-primary' : 'text-foreground'}`}
           />
         </button>
 
         {/* Price Badge */}
         <div className="absolute top-3 left-3">
-          <Badge className={`${event.price === 'Free' ? 'bg-success/90 text-background' : 'bg-background/80 text-foreground'} backdrop-blur-sm border-0 font-semibold`}>
+          <Badge className={`${event.price === 'Free' ? 'bg-success text-background' : 'bg-background/90 text-foreground'} backdrop-blur-md border-0 font-semibold`}>
             {event.price}
           </Badge>
         </div>
@@ -69,13 +69,13 @@ export const EventCard = ({ event }: EventCardProps) => {
       {/* Content Section */}
       <div className="p-4 space-y-3">
         {/* Title */}
-        <h3 className="font-heading font-bold text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+        <h3 className="font-heading font-bold text-base leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
           {event.title}
         </h3>
 
         {/* Event Type & Date */}
         <div className="flex items-center gap-3 text-sm">
-          <Badge variant="outline" className="capitalize border-border/50">
+          <Badge variant="outline" className="capitalize border-border bg-transparent">
             {event.eventType}
           </Badge>
           <div className="flex items-center gap-1.5 text-muted-foreground">
