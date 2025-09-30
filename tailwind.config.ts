@@ -76,6 +76,8 @@ export default {
         'custom-sm': 'var(--shadow-sm)',
         'custom-md': 'var(--shadow-md)',
         'custom-lg': 'var(--shadow-lg)',
+        'spotify': 'var(--shadow-spotify)',
+        'spotify-hover': 'var(--shadow-spotify-hover)',
         'glow': 'var(--shadow-glow)',
       },
       borderRadius: {

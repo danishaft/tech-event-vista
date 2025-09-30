@@ -51,10 +51,12 @@
     --gradient-surface: linear-gradient(135deg, hsl(240 10% 10%), hsl(240 6% 8%));
     --gradient-accent: linear-gradient(135deg, hsl(151 55% 41%), hsl(151 50% 35%));
     
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(240 10% 4% / 0.2);
-    --shadow-md: 0 4px 6px -1px hsl(240 10% 4% / 0.3);
-    --shadow-lg: 0 10px 15px -3px hsl(240 10% 4% / 0.4);
+    /* Shadows - Spotify style */
+    --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px 0 rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 24px 0 rgba(0, 0, 0, 0.5);
+    --shadow-spotify: 0 8px 24px 0 rgba(0, 0, 0, 0.5);
+    --shadow-spotify-hover: 0 16px 40px 0 rgba(0, 0, 0, 0.6);
     --shadow-glow: 0 0 20px hsl(214 100% 60% / 0.3);
     
     /* Typography */
