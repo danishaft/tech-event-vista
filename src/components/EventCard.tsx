@@ -33,9 +33,9 @@ export const EventCard = ({ event }: EventCardProps) => {
   };
 
   return (
-    <Card className="group relative bg-card border-0 overflow-hidden transition-all duration-300 hover:bg-surface-hover hover:shadow-spotify-hover cursor-pointer flex">
+    <Card className="group relative bg-card border-0 overflow-hidden transition-all duration-300 hover:bg-surface-hover hover:shadow-spotify-hover cursor-pointer flex h-40">
       {/* Image Section - Left Side */}
-      <div className="relative w-48 flex-shrink-0 overflow-hidden bg-muted/50">
+      <div className="relative w-56 flex-shrink-0 overflow-hidden bg-muted/50">
         <img 
           src={event.imageUrl} 
           alt={event.title}
@@ -51,7 +51,7 @@ export const EventCard = ({ event }: EventCardProps) => {
       </div>
 
       {/* Content Section - Right Side */}
-      <div className="flex-1 p-4 flex flex-col justify-between relative">
+      <div className="flex-1 p-5 flex flex-col justify-between relative min-w-0">
         {/* Save Button */}
         <button
           onClick={(e) => {
