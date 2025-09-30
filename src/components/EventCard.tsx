@@ -33,82 +33,81 @@ export const EventCard = ({ event }: EventCardProps) => {
   };
 
   return (
-    <Card className="group relative bg-card border-0 overflow-hidden transition-all duration-300 hover:bg-surface-hover hover:shadow-spotify-hover cursor-pointer">
-      {/* Image Section */}
-      <div className="relative aspect-[16/9] overflow-hidden bg-muted/50">
+    <Card className="group relative bg-card border-0 overflow-hidden transition-all duration-300 hover:bg-surface-hover hover:shadow-spotify-hover cursor-pointer flex">
+      {/* Image Section - Left Side */}
+      <div className="relative w-48 flex-shrink-0 overflow-hidden bg-muted/50">
         <img 
           src={event.imageUrl} 
           alt={event.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
         
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
-        
+        {/* Price Badge */}
+        <div className="absolute top-2 left-2">
+          <Badge className={`${event.price === 'Free' ? 'bg-success text-background' : 'bg-background/90 text-foreground'} backdrop-blur-md border-0 font-semibold text-xs`}>
+            {event.price}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Content Section - Right Side */}
+      <div className="flex-1 p-4 flex flex-col justify-between relative">
         {/* Save Button */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             setIsSaved(!isSaved);
           }}
-          className="absolute top-3 right-3 p-2 rounded-full bg-background/60 backdrop-blur-md hover:bg-background/80 transition-all duration-200 hover:scale-110 opacity-0 group-hover:opacity-100"
+          className="absolute top-2 right-2 p-2 rounded-full bg-background/60 backdrop-blur-md hover:bg-background/80 transition-all duration-200 hover:scale-110 opacity-0 group-hover:opacity-100"
         >
           <Heart 
             className={`h-4 w-4 transition-all ${isSaved ? 'fill-primary text-primary' : 'text-foreground'}`}
           />
         </button>
 
-        {/* Price Badge */}
-        <div className="absolute top-3 left-3">
-          <Badge className={`${event.price === 'Free' ? 'bg-success text-background' : 'bg-background/90 text-foreground'} backdrop-blur-md border-0 font-semibold`}>
-            {event.price}
-          </Badge>
-        </div>
-      </div>
+        <div className="space-y-2.5 pr-10">
+          {/* Title */}
+          <h3 className="font-heading font-bold text-base leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+            {event.title}
+          </h3>
 
-      {/* Content Section */}
-      <div className="p-4 space-y-3">
-        {/* Title */}
-        <h3 className="font-heading font-bold text-base leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-          {event.title}
-        </h3>
+          {/* Event Type & Date */}
+          <div className="flex items-center gap-3 text-sm">
+            <Badge variant="outline" className="capitalize border-border bg-transparent text-xs">
+              {event.eventType}
+            </Badge>
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              <span className="text-xs">{formatDate(event.date)}</span>
+            </div>
+          </div>
 
-        {/* Event Type & Date */}
-        <div className="flex items-center gap-3 text-sm">
-          <Badge variant="outline" className="capitalize border-border bg-transparent">
-            {event.eventType}
-          </Badge>
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            <span className="text-xs">{formatDate(event.date)}</span>
+          {/* Location */}
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="text-xs truncate">{event.neighborhood}, {event.city}</span>
+          </div>
+
+          {/* Tech Stack */}
+          <div className="flex flex-wrap gap-1.5">
+            {event.techStack.slice(0, 3).map((tech) => (
+              <span 
+                key={tech} 
+                className={`text-xs px-2 py-0.5 rounded-full border ${getTechColor(tech)}`}
+              >
+                {tech}
+              </span>
+            ))}
+            {event.techStack.length > 3 && (
+              <span className="text-xs px-2 py-0.5 rounded-full border border-border/50 bg-muted/20 text-muted-foreground">
+                +{event.techStack.length - 3}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Location */}
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-          <span className="text-xs truncate">{event.neighborhood}, {event.city}</span>
-        </div>
-
-        {/* Tech Stack */}
-        <div className="flex flex-wrap gap-1.5">
-          {event.techStack.slice(0, 3).map((tech) => (
-            <span 
-              key={tech} 
-              className={`text-xs px-2 py-0.5 rounded-full border ${getTechColor(tech)}`}
-            >
-              {tech}
-            </span>
-          ))}
-          {event.techStack.length > 3 && (
-            <span className="text-xs px-2 py-0.5 rounded-full border border-border/50 bg-muted/20 text-muted-foreground">
-              +{event.techStack.length - 3}
-            </span>
-          )}
-        </div>
-
         {/* Footer Info */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+        <div className="flex items-center justify-between pt-2 border-t border-border/30 mt-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Users className="h-3.5 w-3.5" />
             <span>{event.attendees} going</span>
