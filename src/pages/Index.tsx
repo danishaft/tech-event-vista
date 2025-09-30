@@ -1,15 +1,18 @@
 import { useState, useMemo } from "react";
 import { Header } from "@/components/Header";
 import { EventCard } from "@/components/EventCard";
+import { EventDialog } from "@/components/EventDialog";
 import { FilterBar } from "@/components/FilterBar";
 import { BottomNavigation } from "@/components/BottomNavigation";
-import { sampleEvents } from "@/data/sampleEvents";
+import { sampleEvents, TechEvent } from "@/data/sampleEvents";
 import { TrendingUp, Users, Calendar, Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<TechEvent | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [filters, setFilters] = useState({
     eventType: "all",
     city: "all", 
@@ -132,9 +135,23 @@ const Index = () => {
         {/* Events Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredEvents.map((event) => (
-            <EventCard key={event.id} event={event} />
+            <EventCard 
+              key={event.id} 
+              event={event} 
+              onClick={() => {
+                setSelectedEvent(event);
+                setIsDialogOpen(true);
+              }}
+            />
           ))}
         </div>
+
+        {/* Event Details Dialog */}
+        <EventDialog 
+          event={selectedEvent}
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+        />
 
         {filteredEvents.length === 0 && (
           <div className="text-center py-12">

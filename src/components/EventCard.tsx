@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users, Heart } from "lucide-react";
+import { Calendar, MapPin, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { TechEvent } from "@/data/sampleEvents";
@@ -6,9 +6,10 @@ import { useState } from "react";
 
 interface EventCardProps {
   event: TechEvent;
+  onClick: () => void;
 }
 
-export const EventCard = ({ event }: EventCardProps) => {
+export const EventCard = ({ event, onClick }: EventCardProps) => {
   const [isSaved, setIsSaved] = useState(false);
 
   const formatDate = (dateString: string) => {
@@ -33,7 +34,10 @@ export const EventCard = ({ event }: EventCardProps) => {
   };
 
   return (
-    <Card className="group relative bg-card border-0 overflow-hidden transition-all duration-300 hover:bg-surface-hover hover:shadow-spotify-hover cursor-pointer flex h-40">
+    <Card 
+      className="group relative bg-card border-0 overflow-hidden transition-all duration-300 hover:bg-surface-hover hover:shadow-spotify-hover cursor-pointer flex h-40"
+      onClick={onClick}
+    >
       {/* Image Section - Left Side */}
       <div className="relative w-56 flex-shrink-0 overflow-hidden bg-muted/50">
         <img 
@@ -65,32 +69,27 @@ export const EventCard = ({ event }: EventCardProps) => {
           />
         </button>
 
-        <div className="space-y-2.5 pr-10">
+        <div className="space-y-2 pr-10">
           {/* Title */}
           <h3 className="font-heading font-bold text-base leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
             {event.title}
           </h3>
 
-          {/* Event Type & Date */}
-          <div className="flex items-center gap-3 text-sm">
-            <Badge variant="outline" className="capitalize border-border bg-transparent text-xs">
-              {event.eventType}
-            </Badge>
+          {/* Date & Location */}
+          <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Calendar className="h-3.5 w-3.5" />
               <span className="text-xs">{formatDate(event.date)}</span>
             </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="text-xs truncate">{event.neighborhood}, {event.city}</span>
+            </div>
           </div>
 
-          {/* Location */}
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="text-xs truncate">{event.neighborhood}, {event.city}</span>
-          </div>
-
-          {/* Tech Stack */}
+          {/* Tech Stack - Only show 2 */}
           <div className="flex flex-wrap gap-1.5">
-            {event.techStack.slice(0, 3).map((tech) => (
+            {event.techStack.slice(0, 2).map((tech) => (
               <span 
                 key={tech} 
                 className={`text-xs px-2 py-0.5 rounded-full border ${getTechColor(tech)}`}
@@ -98,21 +97,12 @@ export const EventCard = ({ event }: EventCardProps) => {
                 {tech}
               </span>
             ))}
-            {event.techStack.length > 3 && (
+            {event.techStack.length > 2 && (
               <span className="text-xs px-2 py-0.5 rounded-full border border-border/50 bg-muted/20 text-muted-foreground">
-                +{event.techStack.length - 3}
+                +{event.techStack.length - 2}
               </span>
             )}
           </div>
-        </div>
-
-        {/* Footer Info */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/30 mt-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users className="h-3.5 w-3.5" />
-            <span>{event.attendees} going</span>
-          </div>
-          <span className="text-xs text-muted-foreground">{event.source}</span>
         </div>
       </div>
     </Card>
