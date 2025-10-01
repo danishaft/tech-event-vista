@@ -14,16 +14,186 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      events: {
+        Row: {
+          canonical_event_id: string | null
+          capacity: number | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          currency: string | null
+          dedup_hash: string | null
+          description: string | null
+          event_date: string
+          event_end_date: string | null
+          event_type: Database["public"]["Enums"]["event_type"]
+          external_url: string
+          id: string
+          image_url: string | null
+          is_free: boolean | null
+          is_online: boolean | null
+          last_updated: string | null
+          organizer_description: string | null
+          organizer_name: string | null
+          organizer_rating: number | null
+          price_max: number | null
+          price_min: number | null
+          quality_score: number | null
+          registered_count: number | null
+          scraped_at: string | null
+          source_id: string
+          source_platform: Database["public"]["Enums"]["event_platform"]
+          status: Database["public"]["Enums"]["event_status"] | null
+          tech_stack: string[] | null
+          title: string
+          venue_address: string | null
+          venue_name: string | null
+        }
+        Insert: {
+          canonical_event_id?: string | null
+          capacity?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          currency?: string | null
+          dedup_hash?: string | null
+          description?: string | null
+          event_date: string
+          event_end_date?: string | null
+          event_type: Database["public"]["Enums"]["event_type"]
+          external_url: string
+          id?: string
+          image_url?: string | null
+          is_free?: boolean | null
+          is_online?: boolean | null
+          last_updated?: string | null
+          organizer_description?: string | null
+          organizer_name?: string | null
+          organizer_rating?: number | null
+          price_max?: number | null
+          price_min?: number | null
+          quality_score?: number | null
+          registered_count?: number | null
+          scraped_at?: string | null
+          source_id: string
+          source_platform: Database["public"]["Enums"]["event_platform"]
+          status?: Database["public"]["Enums"]["event_status"] | null
+          tech_stack?: string[] | null
+          title: string
+          venue_address?: string | null
+          venue_name?: string | null
+        }
+        Update: {
+          canonical_event_id?: string | null
+          capacity?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          currency?: string | null
+          dedup_hash?: string | null
+          description?: string | null
+          event_date?: string
+          event_end_date?: string | null
+          event_type?: Database["public"]["Enums"]["event_type"]
+          external_url?: string
+          id?: string
+          image_url?: string | null
+          is_free?: boolean | null
+          is_online?: boolean | null
+          last_updated?: string | null
+          organizer_description?: string | null
+          organizer_name?: string | null
+          organizer_rating?: number | null
+          price_max?: number | null
+          price_min?: number | null
+          quality_score?: number | null
+          registered_count?: number | null
+          scraped_at?: string | null
+          source_id?: string
+          source_platform?: Database["public"]["Enums"]["event_platform"]
+          status?: Database["public"]["Enums"]["event_status"] | null
+          tech_stack?: string[] | null
+          title?: string
+          venue_address?: string | null
+          venue_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_canonical_event_id_fkey"
+            columns: ["canonical_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scraping_jobs: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          events_added: number | null
+          events_found: number | null
+          events_updated: number | null
+          id: string
+          metadata: Json | null
+          platform: Database["public"]["Enums"]["event_platform"]
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          events_added?: number | null
+          events_found?: number | null
+          events_updated?: number | null
+          id?: string
+          metadata?: Json | null
+          platform: Database["public"]["Enums"]["event_platform"]
+          started_at?: string | null
+          status: string
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          events_added?: number | null
+          events_found?: number | null
+          events_updated?: number | null
+          id?: string
+          metadata?: Json | null
+          platform?: Database["public"]["Enums"]["event_platform"]
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      find_duplicate_events: {
+        Args: { p_event_id: string }
+        Returns: {
+          duplicate_id: string
+          similarity_score: number
+        }[]
+      }
+      generate_dedup_hash: {
+        Args: { p_city: string; p_event_date: string; p_title: string }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      event_platform: "eventbrite" | "meetup" | "luma" | "other"
+      event_status: "active" | "cancelled" | "sold_out" | "completed"
+      event_type:
+        | "workshop"
+        | "conference"
+        | "meetup"
+        | "hackathon"
+        | "networking"
+        | "webinar"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +320,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      event_platform: ["eventbrite", "meetup", "luma", "other"],
+      event_status: ["active", "cancelled", "sold_out", "completed"],
+      event_type: [
+        "workshop",
+        "conference",
+        "meetup",
+        "hackathon",
+        "networking",
+        "webinar",
+        "other",
+      ],
+    },
   },
 } as const
