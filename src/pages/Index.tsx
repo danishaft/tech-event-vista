@@ -4,14 +4,16 @@ import { EventCard } from "@/components/EventCard";
 import { EventDialog } from "@/components/EventDialog";
 import { FilterBar } from "@/components/FilterBar";
 import { BottomNavigation } from "@/components/BottomNavigation";
-import { sampleEvents, TechEvent } from "@/data/sampleEvents";
+import { ScraperControls } from "@/components/ScraperControls";
+import { useEvents } from "@/hooks/useEvents";
 import { TrendingUp, Users, Calendar, Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<TechEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [filters, setFilters] = useState({
     eventType: "all",
@@ -19,6 +21,8 @@ const Index = () => {
     price: "all",
     date: "all"
   });
+
+  const { events: dbEvents, isLoading } = useEvents();
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -33,30 +37,71 @@ const Index = () => {
     });
   };
 
+  // Map database events to component format
+  const events = useMemo(() => {
+    return dbEvents.map(event => {
+      const sourceMap: Record<string, 'Eventbrite' | 'Luma' | 'Meetup'> = {
+        'eventbrite': 'Eventbrite',
+        'luma': 'Luma',
+        'meetup': 'Meetup',
+      };
+      
+      return {
+        id: event.id,
+        title: event.title,
+        date: new Date(event.event_date).toLocaleDateString(),
+        time: new Date(event.event_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        location: event.is_online ? 'Online' : event.venue_name || event.city || 'TBD',
+        city: event.city || 'TBD',
+        neighborhood: event.venue_address || '',
+        eventType: (event.event_type || 'meetup') as 'conference' | 'hackathon' | 'meetup' | 'networking' | 'workshop',
+        price: event.is_free ? 'Free' : `$${event.price_min || 0}`,
+        image: event.image_url || '/placeholder.svg',
+        imageUrl: event.image_url || '/placeholder.svg',
+        organizerRating: event.organizer_rating || 4.5,
+        attendees: event.registered_count,
+        maxAttendees: event.capacity || 100,
+        techStack: event.tech_stack,
+        description: event.description || '',
+        organizer: event.organizer_name || 'Unknown',
+        registrationUrl: event.external_url,
+        venue: event.venue_name || 'TBD',
+        capacity: event.capacity || 100,
+        source: sourceMap[event.source_platform] || 'Luma',
+        sourceUrl: event.external_url,
+        isPastEvent: new Date(event.event_date) < new Date(),
+        upcomingDate: new Date(event.event_date).toISOString(),
+        isOnline: event.is_online,
+        isSoldOut: event.status === 'sold_out',
+        registrationDeadline: event.event_date,
+        qualityScore: event.quality_score || 0,
+      };
+    });
+  }, [dbEvents]);
+
   const filteredEvents = useMemo(() => {
-    return sampleEvents.filter(event => {
+    return events.filter(event => {
       if (filters.eventType !== "all" && event.eventType !== filters.eventType) return false;
       if (filters.city !== "all" && event.city !== filters.city) return false;
       if (filters.price !== "all") {
         if (filters.price === "free" && event.price !== "Free") return false;
         if (filters.price === "paid" && event.price === "Free") return false;
       }
-      // Add date filtering logic here if needed
       return true;
     });
-  }, [filters]);
+  }, [events, filters]);
 
   // Stats for the dashboard
   const stats = {
-    totalEvents: sampleEvents.length,
-    thisWeek: sampleEvents.filter(event => {
-      const eventDate = new Date(event.date);
+    totalEvents: dbEvents.length,
+    thisWeek: dbEvents.filter(event => {
+      const eventDate = new Date(event.event_date);
       const now = new Date();
       const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       return eventDate >= now && eventDate <= weekFromNow;
     }).length,
-    averageRating: (sampleEvents.reduce((acc, event) => acc + event.organizerRating, 0) / sampleEvents.length).toFixed(1),
-    totalAttendees: sampleEvents.reduce((acc, event) => acc + event.attendees, 0)
+    averageRating: dbEvents.length > 0 ? (dbEvents.reduce((acc, event) => acc + (event.organizer_rating || 4.5), 0) / dbEvents.length).toFixed(1) : '0.0',
+    totalAttendees: dbEvents.reduce((acc, event) => acc + event.registered_count, 0)
   };
 
   return (
@@ -72,6 +117,11 @@ const Index = () => {
           <p className="text-muted-foreground text-lg">
             Find workshops, conferences, and meetups in your area
           </p>
+        </div>
+
+        {/* Scraper Controls */}
+        <div className="mb-6">
+          <ScraperControls />
         </div>
 
         {/* Stats Cards */}
@@ -133,18 +183,30 @@ const Index = () => {
         />
 
         {/* Events Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredEvents.map((event) => (
-            <EventCard 
-              key={event.id} 
-              event={event} 
-              onClick={() => {
-                setSelectedEvent(event);
-                setIsDialogOpen(true);
-              }}
-            />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="h-40">
+                <CardContent className="p-5">
+                  <Skeleton className="h-full w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {filteredEvents.map((event) => (
+              <EventCard 
+                key={event.id} 
+                event={event} 
+                onClick={() => {
+                  setSelectedEvent(event);
+                  setIsDialogOpen(true);
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Event Details Dialog */}
         <EventDialog 
