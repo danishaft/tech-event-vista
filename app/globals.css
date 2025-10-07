@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tech Event Radar Design System - Luma Inspired */
+
+@layer base {
+  :root {
+    /* Spotify-inspired dark theme */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 98%;
+    
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 141 73% 42%;
+    --primary-foreground: 0 0% 98%;
+    
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    
+    --accent: 141 73% 42%;
+    --accent-foreground: 0 0% 98%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 141 73% 42%;
+    
+    --radius: 0.5rem;
+    
+    /* Custom semantic colors */
+    --surface: 0 0% 10%;
+    --surface-hover: 0 0% 14%;
+    --success: 141 73% 42%;
+    --warning: 38 92% 50%;
+    --info: 214 100% 60%;
+    
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(141 73% 42%), hsl(141 73% 35%));
+    --gradient-surface: linear-gradient(135deg, hsl(0 0% 11%), hsl(0 0% 8%));
+    --gradient-accent: linear-gradient(135deg, hsl(141 73% 42%), hsl(141 73% 35%));
+    
+    /* Shadows - Spotify style */
+    --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 4px 8px 0 rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 8px 16px 0 rgba(0, 0, 0, 0.7);
+    --shadow-spotify: 0 8px 24px 0 rgba(0, 0, 0, 0.7);
+    --shadow-spotify-hover: 0 12px 32px 0 rgba(0, 0, 0, 0.8);
+    --shadow-glow: 0 0 20px hsl(141 73% 42% / 0.3);
+    
+    /* Typography */
+    --font-heading: 'Inter', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
