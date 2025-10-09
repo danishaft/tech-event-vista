@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       { platform, city, jobId: job.id },
       {
         jobId: job.id,
-        delay: 1000, // 1 second delay
+        delay: 1000, 
       }
     )
 
