@@ -1,82 +1,92 @@
-import { useQuery } from '@tanstack/react-query';
-import { sampleEvents, TechEvent } from '@/data/sampleEvents';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-// Map TechEvent to the expected format for compatibility
+// Real API event interface matching the database schema
 export interface Event {
   id: string;
   title: string;
   description?: string;
-  event_type: string;
+  eventType: string;
   status: string;
-  event_date: string;
-  event_end_date?: string;
-  venue_name?: string;
-  venue_address?: string;
+  eventDate: string;
+  eventEndDate?: string;
+  venueName?: string;
+  venueAddress?: string;
   city?: string;
   country?: string;
-  is_online: boolean;
-  is_free: boolean;
-  price_min?: number;
-  price_max?: number;
+  isOnline: boolean;
+  isFree: boolean;
+  priceMin?: number;
+  priceMax?: number;
   currency?: string;
-  organizer_name?: string;
-  organizer_description?: string;
-  organizer_rating?: number;
+  organizerName?: string;
+  organizerDescription?: string;
+  organizerRating?: number;
   capacity?: number;
-  registered_count: number;
-  tech_stack: string[];
-  quality_score?: number;
-  external_url: string;
-  image_url?: string;
-  source_platform: string;
-  source_id: string;
-  scraped_at: string;
-  last_updated: string;
-  created_at: string;
+  registeredCount: number;
+  techStack: string[];
+  qualityScore?: number;
+  externalUrl: string;
+  imageUrl?: string;
+  sourcePlatform: string;
+  sourceId: string;
+  scrapedAt: string;
+  lastUpdated: string;
+  createdAt: string;
 }
 
-const mapTechEventToEvent = (techEvent: TechEvent): Event => {
-  return {
-    id: techEvent.id,
-    title: techEvent.title,
-    description: techEvent.description,
-    event_type: techEvent.eventType,
-    status: 'active',
-    event_date: techEvent.date,
-    event_end_date: techEvent.date,
-    venue_name: techEvent.location,
-    venue_address: techEvent.neighborhood,
-    city: techEvent.city,
-    country: 'US',
-    is_online: techEvent.isOnline,
-    is_free: techEvent.price === 'Free',
-    price_min: techEvent.price === 'Free' ? 0 : parseInt(techEvent.price.replace('$', '')),
-    price_max: techEvent.price === 'Free' ? 0 : parseInt(techEvent.price.replace('$', '')),
-    currency: 'USD',
-    organizer_name: techEvent.organizer,
-    organizer_description: '',
-    organizer_rating: techEvent.organizerRating,
-    capacity: techEvent.maxAttendees,
-    registered_count: techEvent.attendees,
-    tech_stack: techEvent.techStack,
-    quality_score: techEvent.qualityScore,
-    external_url: techEvent.sourceUrl,
-    image_url: techEvent.imageUrl,
-    source_platform: techEvent.source.toLowerCase(),
-    source_id: techEvent.id,
-    scraped_at: new Date().toISOString(),
-    last_updated: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  };
-};
+export const useEvents = (opts?: {
+  city?: string;
+  eventType?: string;
+  price?: string;
+  date?: string;
+  limit?: number;
+  page?: number;
+  enablePolling?: boolean;
+}) => {
+  const queryClient = useQueryClient();
 
-export const useEvents = () => {
-  const { data: events = [], isLoading, error } = useQuery({
-    queryKey: ['events'],
+  // Fetch events from real API
+  const params = new URLSearchParams();
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  else params.set('limit', '50');
+  if (opts?.page) params.set('page', String(opts.page));
+  if (opts?.city && opts.city !== 'all') params.set('city', opts.city);
+  if (opts?.eventType && opts.eventType !== 'all') params.set('eventType', opts.eventType);
+  if (opts?.price && opts.price !== 'all') params.set('price', opts.price);
+  if (opts?.date && opts.date !== 'all') params.set('date', opts.date);
+
+  const { data: events = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['events', Object.fromEntries(params)],
     queryFn: async () => {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return sampleEvents.map(mapTechEventToEvent);
+      const response = await fetch(`/api/events?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch events');
+      }
+      const data = await response.json();
+      return data.events;
+    },
+    refetchInterval: opts?.enablePolling ? 5000 : 30000, // More aggressive polling when enabled
+    refetchIntervalInBackground: opts?.enablePolling || false,
+  });
+
+  // Scraping mutation
+  const scrapeMutation = useMutation({
+    mutationFn: async ({ platform, city }: { platform: string; city: string }) => {
+      const response = await fetch('/api/scraping', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ platform, city }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to start scraping');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      // Refetch events after successful scraping
+      queryClient.invalidateQueries({ queryKey: ['events'] });
     },
   });
 
@@ -84,9 +94,11 @@ export const useEvents = () => {
     events,
     isLoading,
     error,
-    scrapeEvents: () => {
-      console.log('Scraping not available in demo mode');
+    refetch,
+    scrapeEvents: (platform: string, city: string) => {
+      scrapeMutation.mutate({ platform, city });
     },
-    isScraping: false,
+    isScraping: scrapeMutation.isPending,
+    scrapingError: scrapeMutation.error,
   };
 };
