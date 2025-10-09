@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (city && city !== 'all') {
-      where.city = city
+      where.city = { equals: city, mode: 'insensitive' }
     }
 
     if (eventType && eventType !== 'all') {
