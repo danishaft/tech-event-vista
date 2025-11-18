@@ -423,7 +423,7 @@ export class SSEService {
    * @param data - Event data
    * @returns Formatted SSE event string
    */
-  private formatSSEEvent(type: string, data: any): string {
+  formatSSEEvent(type: string, data: any): string {
     try {
       const event: SSEEvent = {
         type: type as any,
@@ -616,8 +616,8 @@ export class SSEService {
             console.log(`🔍 [LIVE-SCRAPING] Generator iteration completed. Total events received: ${eventCount} for job: ${jobId}`)
           } catch (generatorError) {
             console.error(`❌ [LIVE-SCRAPING] Generator iteration failed for job: ${jobId}`, {
-              error: generatorError.message,
-              stack: generatorError.stack,
+              error: generatorError instanceof Error ? generatorError.message : String(generatorError),
+              stack: generatorError instanceof Error ? generatorError.stack : undefined,
               city,
               query,
               eventCount

@@ -688,3 +688,4 @@ export function calculateCompleteness(event: any): number {
   return Math.min(100, score)
 }
 
+

@@ -717,7 +717,7 @@ export async function processChatMessage(
     events,
     stats,
     conversationHistory,
-    speakers: speakersData
+    speakers: speakersData || undefined
   })
 
   return {

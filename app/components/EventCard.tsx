@@ -1,7 +1,7 @@
 import { Calendar, MapPin, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { TechEvent } from "@/data/sampleEvents";
+import { TechEvent } from "@/types/event";
 import { useState } from "react";
 
 interface EventCardProps {

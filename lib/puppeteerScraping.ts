@@ -37,7 +37,6 @@ export async function createBrowser() {
       '--disable-default-apps',
       '--disable-background-networking',
     ],
-    ignoreHTTPSErrors: true,
     ignoreDefaultArgs: ['--disable-extensions'],
   })
 }

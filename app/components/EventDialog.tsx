@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { TechEvent } from "@/data/sampleEvents";
+import { TechEvent } from "@/types/event";
 import { Calendar, MapPin, Users, DollarSign, Star, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

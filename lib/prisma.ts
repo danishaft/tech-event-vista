@@ -20,12 +20,7 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
   },
   // Optimize connection pool for serverless
   // These settings help with connection reuse and reduce latency
-  __internal: {
-    engine: {
-      connectTimeout: 5000, // 5 second timeout (reduced from 10s)
-      queryTimeout: 20000, // 20 second query timeout (reduced from 30s)
-    },
-  },
+  // Note: __internal is a Prisma internal API and may not be available in all versions
 })
 
 // Add connection retry logic

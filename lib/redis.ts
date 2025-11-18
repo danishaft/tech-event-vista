@@ -229,7 +229,7 @@ connection.on('close', () => {
   console.log('⚠️ Redis connection closed')
 })
 
-connection.on('reconnecting', (delay) => {
+connection.on('reconnecting', (delay: number) => {
   console.log(`🔄 Redis reconnecting in ${delay}ms...`)
 })
 

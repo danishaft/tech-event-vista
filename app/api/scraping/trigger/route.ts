@@ -89,26 +89,34 @@ async function startScrapingJob(cities: string[], platforms: string[], maxEvents
         
         // Process each platform
         for (const platform of platforms) {
-          console.log(`🎯 [BATCH-SCRAPING] Starting ${platform} scraping for ${city}`, {
+          // Type guard: ensure platform is valid
+          if (platform !== 'luma' && platform !== 'eventbrite') {
+            console.warn(`⚠️ [BATCH-SCRAPING] Skipping invalid platform: ${platform}`)
+            continue
+          }
+
+          const validPlatform: 'luma' | 'eventbrite' = platform
+          
+          console.log(`🎯 [BATCH-SCRAPING] Starting ${validPlatform} scraping for ${city}`, {
             jobId,
-            platform,
+            platform: validPlatform,
             city,
           })
 
           try {
             let events: any[] = []
 
-            if (platform === 'luma') {
+            if (validPlatform === 'luma') {
               console.log(`🔍 [BATCH-SCRAPING] Starting Luma scrape for ${city}...`)
               events = await scrapeLumaEvents('tech', maxEvents)
               console.log(`📊 [BATCH-SCRAPING] Luma returned ${events.length} events for ${city}`, {
                 jobId,
-                platform,
+                platform: validPlatform,
                 city,
                 eventsFound: events.length,
                 sampleEvents: events.slice(0, 2).map(e => ({ title: e.name || e.title, id: e.id || e.api_id }))
               })
-            } else if (platform === 'eventbrite') {
+            } else if (validPlatform === 'eventbrite') {
               console.log(`🔍 [BATCH-SCRAPING] Starting Eventbrite scrape for ${city}...`)
               
               // Use multiple tech-related search queries for better results
@@ -133,7 +141,7 @@ async function startScrapingJob(cities: string[], platforms: string[], maxEvents
               events = uniqueEvents
               console.log(`📊 [BATCH-SCRAPING] Eventbrite returned ${events.length} unique events for ${city} (from ${allEvents.length} total)`, {
                 jobId,
-                platform,
+                platform: validPlatform,
                 city,
                 eventsFound: events.length,
                 sampleEvents: events.slice(0, 3).map(e => ({ title: e.name || e.title, query: 'multiple', url: e.url }))
@@ -141,31 +149,31 @@ async function startScrapingJob(cities: string[], platforms: string[], maxEvents
             }
 
             if (events.length > 0) {
-              console.log(`💾 [BATCH-SCRAPING] Processing ${events.length} ${platform} events for ${city}...`, {
+              console.log(`💾 [BATCH-SCRAPING] Processing ${events.length} ${validPlatform} events for ${city}...`, {
                 jobId,
-                platform,
+                platform: validPlatform,
                 city,
               })
-              const saved = await processAndSaveEvents(events, platform, city)
+              const saved = await processAndSaveEvents(events, validPlatform, city)
               totalSaved += saved
-              console.log(`✅ [BATCH-SCRAPING] Saved ${saved}/${events.length} ${platform} events for ${city}`, {
+              console.log(`✅ [BATCH-SCRAPING] Saved ${saved}/${events.length} ${validPlatform} events for ${city}`, {
                 jobId,
-                platform,
+                platform: validPlatform,
                 city,
                 saved,
                 totalFound: events.length,
               })
             } else {
-              console.log(`⚠️ [BATCH-SCRAPING] No events found for ${platform} in ${city}`, {
+              console.log(`⚠️ [BATCH-SCRAPING] No events found for ${validPlatform} in ${city}`, {
                 jobId,
-                platform,
+                platform: validPlatform,
                 city,
               })
             }
           } catch (platformError) {
-            console.error(`❌ [BATCH-SCRAPING] ${platform} scraping failed for ${city}`, {
+            console.error(`❌ [BATCH-SCRAPING] ${validPlatform} scraping failed for ${city}`, {
               jobId,
-              platform,
+              platform: validPlatform,
               city,
               error: (platformError as Error).message,
             })
