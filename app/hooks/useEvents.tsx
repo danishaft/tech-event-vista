@@ -65,14 +65,15 @@ export const useEvents = (opts?: {
       const data = await response.json();
       return data.events;
     },
-    refetchInterval: opts?.enablePolling ? 5000 : 30000, // More aggressive polling when enabled
-    refetchIntervalInBackground: opts?.enablePolling || false,
+    refetchInterval: opts?.enablePolling ? 5000 : false, // Disable auto-refetch by default (use manual refresh)
+    refetchIntervalInBackground: false, // Never refetch in background
+    staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
   // Scraping mutation
   const scrapeMutation = useMutation({
     mutationFn: async ({ platform, city }: { platform: string; city: string }) => {
-      const response = await fetch('/api/scraping', {
+      const response = await fetch('/api/scraping/trigger', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

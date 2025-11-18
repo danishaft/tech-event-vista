@@ -11,105 +11,130 @@ datasource db {
 }
 
 model Event {
-  id                String   @id @default(cuid())
-  title             String
-  description       String?
-  eventType         String   // workshop, conference, meetup, hackathon
-  status            String   @default("active") // active, cancelled, sold_out
-  eventDate         DateTime
-  eventEndDate      DateTime?
-  venueName         String?
-  venueAddress      String?
-  city              String
-  country           String   @default("US")
-  isOnline          Boolean  @default(false)
-  isFree            Boolean  @default(false)
-  priceMin          Float?
-  priceMax          Float?
-  currency          String   @default("USD")
-  organizerName     String?
+  id                   String    @id @default(cuid())
+  title                String
+  description          String?
+  eventType            String // workshop, conference, meetup, hackathon
+  status               String    @default("active") // active, cancelled, sold_out
+  eventDate            DateTime
+  eventEndDate         DateTime?
+  venueName            String?
+  venueAddress         String?
+  city                 String
+  country              String    @default("US")
+  isOnline             Boolean   @default(false)
+  isFree               Boolean   @default(false)
+  priceMin             Float?
+  priceMax             Float?
+  currency             String    @default("USD")
+  organizerName        String?
   organizerDescription String?
-  organizerRating   Float?
-  capacity          Int?
-  registeredCount   Int      @default(0)
-  techStack         String[] // Array of technologies
-  qualityScore      Float    @default(0)
-  externalUrl       String?
-  imageUrl          String?
-  sourcePlatform    String   // eventbrite, meetup, luma
-  sourceId          String   // Original ID from source platform
-  scrapedAt         DateTime @default(now())
-  lastUpdated       DateTime @updatedAt
-  createdAt         DateTime @default(now())
+  organizerRating      Float?
+  capacity             Int?
+  registeredCount      Int       @default(0)
+  techStack            String[] // Array of technologies
+  qualityScore         Float     @default(0)
+  completenessScore    Float     @default(0) // 0-100, calculated completeness
+  externalUrl          String?
+  imageUrl             String?
+  sourcePlatform       String // eventbrite, meetup, luma
+  sourceId             String // Original ID from source platform
+  scrapedAt            DateTime  @default(now())
+  lastUpdated          DateTime  @updatedAt
+  createdAt            DateTime  @default(now())
+  
+  // Data Enrichment Fields
+  dataEnriched         Boolean   @default(false) // Was this enriched by LLM?
+  enrichmentAttempts  Int       @default(0) // How many times we tried to enrich
+  topics               String[]  // Topics/themes (AI-extracted)
+  audienceLevel        String?   // beginner, intermediate, advanced
+  format               String?   // hands-on, lecture, panel, networking, workshop
+  summary              String?   // AI-generated short summary (100-200 chars)
+  keyPoints            String[]  // AI-extracted key points
+  
+  // Enhanced Organizer
+  organizerUrl         String?   // Link to organizer profile
+  
+  // Enhanced Location
+  latitude            Float?    // For map features
+  longitude           Float?    // For map features
+  timezone            String?   // Event timezone
 
   // Relations
-  savedEvents       SavedEvent[]
-  eventCategories   EventCategory[]
+  savedEvents     SavedEvent[]
+  eventCategories EventCategory[]
 
   @@unique([sourcePlatform, sourceId])
   @@index([city])
   @@index([eventDate])
   @@index([eventType])
   @@index([techStack])
+  @@index([status]) // For filtering active events
+  @@index([qualityScore]) // For sorting
+  @@index([title, eventDate, city], name: "idx_title_date_city")
+  @@index([externalUrl], name: "idx_external_url")
+  @@index([status, city, eventDate], name: "idx_status_city_date") // Composite for common queries
+  @@index([status, eventDate], name: "idx_status_date") // For date filtering
 }
 
 model User {
-  id                String   @id @default(cuid())
-  clerkId           String   @unique
-  email             String   @unique
-  firstName         String?
-  lastName          String?
-  profileImageUrl   String?
-  preferences       Json?    // User preferences as JSON
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id              String   @id @default(cuid())
+  email           String   @unique
+  firstName       String?
+  lastName        String?
+  profileImageUrl String?
+  preferences     Json? // User preferences as JSON
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  savedEvents       SavedEvent[]
-
-  @@index([clerkId])
+  savedEvents SavedEvent[]
 }
 
 model SavedEvent {
-  id        String   @id @default(cuid())
-  userId    String
-  eventId   String
-  savedAt   DateTime @default(now())
-  notes     String?
+  id      String   @id @default(cuid())
+  userId  String
+  eventId String
+  savedAt DateTime @default(now())
+  notes   String?
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
   @@index([userId])
 }
 
 model EventCategory {
-  id          String   @id @default(cuid())
-  eventId     String
-  category    String   // technology, event_type, etc.
-  value       String   // react, conference, etc.
-  confidence  Float    @default(1.0)
+  id         String @id @default(cuid())
+  eventId    String
+  category   String // technology, event_type, etc.
+  value      String // react, conference, etc.
+  confidence Float  @default(1.0)
 
   // Relations
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, category, value])
   @@index([category])
 }
 
 model ScrapingJob {
-  id          String   @id @default(cuid())
-  platform    String   // eventbrite, meetup, luma
-  status      String   // pending, running, completed, failed
-  startedAt   DateTime?
-  completedAt DateTime?
-  errorMessage String?
-  eventsScraped Int    @default(0)
-  createdAt   DateTime @default(now())
+  id            String    @id @default(cuid())
+  platform      String // eventbrite, meetup, luma
+  status        String // pending, running, completed, failed
+  query         String? // Search query that triggered scraping
+  city          String? // City being scraped
+  platforms     String[] // Platforms being scraped
+  startedAt     DateTime?
+  completedAt   DateTime?
+  errorMessage  String?
+  eventsScraped Int       @default(0)
+  createdAt     DateTime  @default(now())
 
   @@index([platform])
   @@index([status])
   @@index([createdAt])
+  @@index([query])
 }

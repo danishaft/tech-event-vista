@@ -127,7 +127,16 @@ export const EventDialog = ({ event, open, onOpenChange }: EventDialogProps) => 
           </div>
 
           {/* CTA Button */}
-          <Button className="w-full" size="lg">
+          <Button 
+            className="w-full" 
+            size="lg"
+            onClick={() => {
+              if (event.externalUrl) {
+                window.open(event.externalUrl, '_blank', 'noopener,noreferrer');
+              }
+            }}
+            disabled={!event.externalUrl}
+          >
             <ExternalLink className="h-4 w-4 mr-2" />
             View on {event.source}
           </Button>

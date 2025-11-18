@@ -1,134 +1,134 @@
-import { Page } from 'puppeteer'
-import { ScrapedEvent } from './eventbriteScraping'
+// import { Page } from 'puppeteer'
+// import { ScrapedEvent } from './eventbriteScraping'
 
-// Production-ready Meetup scraper using official Puppeteer patterns
-export const scrapeMeetup = async (page: Page, city: string): Promise<ScrapedEvent[]> => {
-  try {
-    console.log(`🕷️ Starting Meetup scraping for ${city}`)
+// // Production-ready Meetup scraper using official Puppeteer patterns
+// export const scrapeMeetup = async (page: Page, city: string): Promise<ScrapedEvent[]> => {
+//   try {
+//     console.log(`🕷️ Starting Meetup scraping for ${city}`)
     
-    // Navigate to Meetup tech events page
-    const searchUrl = `https://www.meetup.com/find/?source=EVENTS&location=${city}&categoryId=34`
-    await page.goto(searchUrl, { 
-      waitUntil: 'networkidle2',
-      timeout: 30000 
-    })
+//     // Navigate to Meetup tech events page
+//     const searchUrl = `https://www.meetup.com/find/?source=EVENTS&location=${city}&categoryId=34`
+//     await page.goto(searchUrl, { 
+//       waitUntil: 'networkidle2',
+//       timeout: 30000 
+//     })
 
-    // Wait for events to load - use more generic selector
-    await page.waitForSelector('div[data-testid="event-card"], .eventCard, .event-card', { timeout: 10000 })
+//     // Wait for events to load - use more generic selector
+//     await page.waitForSelector('div[data-testid="event-card"], .eventCard, .event-card', { timeout: 10000 })
 
-    // Extract events using page.evaluate() - official Puppeteer pattern
-    const events = await page.evaluate((): ScrapedEvent[] => {
-      // Try multiple Meetup selectors
-      const selectors = [
-        '[data-testid="event-card"]',
-        '.eventCard',
-        '.event-card',
-        'div[class*="eventCard"]',
-        'div[class*="event-card"]',
-        'article[class*="event"]'
-      ]
+//     // Extract events using page.evaluate() - official Puppeteer pattern
+//     const events = await page.evaluate((): ScrapedEvent[] => {
+//       // Try multiple Meetup selectors
+//       const selectors = [
+//         '[data-testid="event-card"]',
+//         '.eventCard',
+//         '.event-card',
+//         'div[class*="eventCard"]',
+//         'div[class*="event-card"]',
+//         'article[class*="event"]'
+//       ]
       
-      let eventCards: NodeListOf<Element> | null = null
+//       let eventCards: NodeListOf<Element> | null = null
       
-      for (const selector of selectors) {
-        eventCards = document.querySelectorAll(selector)
-        if (eventCards.length > 0) {
-          console.log(`Found ${eventCards.length} Meetup events using selector: ${selector}`)
-          break
-        }
-      }
+//       for (const selector of selectors) {
+//         eventCards = document.querySelectorAll(selector)
+//         if (eventCards.length > 0) {
+//           console.log(`Found ${eventCards.length} Meetup events using selector: ${selector}`)
+//           break
+//         }
+//       }
       
-      if (!eventCards || eventCards.length === 0) {
-        console.log('No Meetup event cards found, trying fallback method')
-        // Fallback: look for any elements that might contain event data
-        const allDivs = document.querySelectorAll('div')
-        const potentialEvents = Array.from(allDivs).filter(div => {
-          const text = div.textContent || ''
-          return text.includes('event') || text.includes('meetup') || text.includes('group')
-        })
+//       if (!eventCards || eventCards.length === 0) {
+//         console.log('No Meetup event cards found, trying fallback method')
+//         // Fallback: look for any elements that might contain event data
+//         const allDivs = document.querySelectorAll('div')
+//         const potentialEvents = Array.from(allDivs).filter(div => {
+//           const text = div.textContent || ''
+//           return text.includes('event') || text.includes('meetup') || text.includes('group')
+//         })
         
-        if (potentialEvents.length > 0) {
-          eventCards = potentialEvents as NodeListOf<Element>
-          console.log(`Found ${eventCards.length} potential Meetup events using fallback method`)
-        }
-      }
-      const scrapedEvents: ScrapedEvent[] = []
+//         if (potentialEvents.length > 0) {
+//           eventCards = potentialEvents as NodeListOf<Element>
+//           console.log(`Found ${eventCards.length} potential Meetup events using fallback method`)
+//         }
+//       }
+//       const scrapedEvents: ScrapedEvent[] = []
 
-      eventCards.forEach((card, index) => {
-        try {
-          // Extract event data using proper selectors
-          const titleElement = card.querySelector('[data-testid="event-title"]')
-          const title = titleElement?.textContent?.trim() || ''
+//       eventCards.forEach((card, index) => {
+//         try {
+//           // Extract event data using proper selectors
+//           const titleElement = card.querySelector('[data-testid="event-title"]')
+//           const title = titleElement?.textContent?.trim() || ''
 
-          const dateElement = card.querySelector('[data-testid="event-date"]')
-          const dateText = dateElement?.textContent?.trim() || ''
+//           const dateElement = card.querySelector('[data-testid="event-date"]')
+//           const dateText = dateElement?.textContent?.trim() || ''
           
-          const venueElement = card.querySelector('[data-testid="event-venue"]')
-          const venueName = venueElement?.textContent?.trim() || ''
+//           const venueElement = card.querySelector('[data-testid="event-venue"]')
+//           const venueName = venueElement?.textContent?.trim() || ''
 
-          const priceElement = card.querySelector('[data-testid="event-price"]')
-          const priceText = priceElement?.textContent?.trim() || ''
-          const isFree = priceText.toLowerCase().includes('free') || priceText === ''
+//           const priceElement = card.querySelector('[data-testid="event-price"]')
+//           const priceText = priceElement?.textContent?.trim() || ''
+//           const isFree = priceText.toLowerCase().includes('free') || priceText === ''
 
-          const linkElement = card.querySelector('a[href*="/events/"]')
-          const externalUrl = linkElement?.getAttribute('href') || ''
-          const sourceId = externalUrl.split('/events/')[1]?.split('/')[0] || `meetup-${index}`
+//           const linkElement = card.querySelector('a[href*="/events/"]')
+//           const externalUrl = linkElement?.getAttribute('href') || ''
+//           const sourceId = externalUrl.split('/events/')[1]?.split('/')[0] || `meetup-${index}`
 
-          // Parse date (simplified - in production, use proper date parsing)
-          const eventDate = new Date()
-          eventDate.setDate(eventDate.getDate() + Math.floor(Math.random() * 30))
+//           // Parse date (simplified - in production, use proper date parsing)
+//           const eventDate = new Date()
+//           eventDate.setDate(eventDate.getDate() + Math.floor(Math.random() * 30))
 
-          // Extract tech stack from title and description
-          const techStack = extractTechStack(title)
+//           // Extract tech stack from title and description
+//           const techStack = extractTechStack(title)
 
-          if (title) {
-            scrapedEvents.push({
-              title,
-              description: '', // Would extract from event detail page
-              eventDate,
-              venueName,
-              city: 'San Francisco', // Would extract from venue
-              country: 'US',
-              isOnline: venueName.toLowerCase().includes('online'),
-              isFree,
-              currency: 'USD',
-              registeredCount: 0,
-              techStack,
-              externalUrl,
-              sourcePlatform: 'meetup',
-              sourceId,
-            })
-          }
-        } catch (error) {
-          console.error('Error extracting event data:', error)
-        }
-      })
+//           if (title) {
+//             scrapedEvents.push({
+//               title,
+//               description: '', // Would extract from event detail page
+//               eventDate,
+//               venueName,
+//               city: 'San Francisco', // Would extract from venue
+//               country: 'US',
+//               isOnline: venueName.toLowerCase().includes('online'),
+//               isFree,
+//               currency: 'USD',
+//               registeredCount: 0,
+//               techStack,
+//               externalUrl,
+//               sourcePlatform: 'meetup',
+//               sourceId,
+//             })
+//           }
+//         } catch (error) {
+//           console.error('Error extracting event data:', error)
+//         }
+//       })
 
-      return scrapedEvents
-    })
+//       return scrapedEvents
+//     })
 
-    console.log(`✅ Successfully scraped ${events.length} events from Meetup`)
-    return events
+//     console.log(`✅ Successfully scraped ${events.length} events from Meetup`)
+//     return events
 
-  } catch (error) {
-    console.error('❌ Meetup scraping failed:', error)
-    throw new Error(`Meetup scraping failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-  }
-}
+//   } catch (error) {
+//     console.error('❌ Meetup scraping failed:', error)
+//     throw new Error(`Meetup scraping failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+//   }
+// }
 
-// Helper function to extract tech stack from text
-function extractTechStack(text: string): string[] {
-  const techKeywords = [
-    'React', 'Vue', 'Angular', 'JavaScript', 'TypeScript', 'Node.js', 'Python',
-    'Java', 'C++', 'C#', 'Go', 'Rust', 'PHP', 'Ruby', 'Swift', 'Kotlin',
-    'Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP', 'Machine Learning', 'AI',
-    'Data Science', 'Blockchain', 'Web3', 'DevOps', 'Frontend', 'Backend',
-    'Full Stack', 'Mobile', 'iOS', 'Android', 'Flutter', 'React Native'
-  ]
+// // Helper function to extract tech stack from text
+// function extractTechStack(text: string): string[] {
+//   const techKeywords = [
+//     'React', 'Vue', 'Angular', 'JavaScript', 'TypeScript', 'Node.js', 'Python',
+//     'Java', 'C++', 'C#', 'Go', 'Rust', 'PHP', 'Ruby', 'Swift', 'Kotlin',
+//     'Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP', 'Machine Learning', 'AI',
+//     'Data Science', 'Blockchain', 'Web3', 'DevOps', 'Frontend', 'Backend',
+//     'Full Stack', 'Mobile', 'iOS', 'Android', 'Flutter', 'React Native'
+//   ]
 
-  const foundTech = techKeywords.filter(tech => 
-    text.toLowerCase().includes(tech.toLowerCase())
-  )
+//   const foundTech = techKeywords.filter(tech => 
+//     text.toLowerCase().includes(tech.toLowerCase())
+//   )
 
-  return foundTech
-}
+//   return foundTech
+// }

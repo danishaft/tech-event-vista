@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/scraping/trigger",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}
