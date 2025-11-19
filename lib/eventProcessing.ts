@@ -92,9 +92,10 @@ export function extractTechStack(title: string, description: string): string[] {
     'blockchain', 'web3', 'solidity', 'ethereum', 'smart contract',
     // Mobile
     'react native', 'flutter', 'ios development', 'android development',
-    // Development practices
+    // Development practices (covers "web development 2025", "frontend 2025")
     'software engineering', 'software development', 'web development',
     'frontend development', 'backend development', 'fullstack development',
+    'frontend', 'backend', 'fullstack', // Standalone terms for featured searches
     'devops', 'ci/cd', 'agile', 'scrum'
   ]
   
@@ -334,29 +335,36 @@ export function isTechEvent(event: any, extractTechStack: (title: string, desc: 
     }
   }
   
-  // STRICT: Must have tech stack keywords OR explicit "tech" mention
+  // LIGHTER: Check for tech keywords - data science, AI, ML, etc. are tech
   const techStack = extractTechStack(event.title || '', event.description || '')
-  if (techStack.length === 0 && !hasExplicitTech) {
-    return false
-  }
   
-  // STRICT: Must be clearly software/tech related
-  // Require at least one of these indicators:
-  const techIndicators = [
+  // Tech keywords that indicate tech events (broader list)
+  // IMPORTANT: These patterns ensure all featured searches pass through
+  const techKeywords = [
+    // AI/ML/Data Science (very common in tech events)
+    /\b(ai|artificial intelligence|machine learning|ml|deep learning|data science|data engineering)\b/i,
     // Development/Engineering keywords
     /\b(software|code|coding|programming|development|engineering|developer|engineer|dev)\b/i,
-    // Tech stack keywords (already checked, but verify context)
-    /\b(react|vue|angular|javascript|typescript|python|java|node|ai|ml|machine learning|data science)\b/i,
-    // Event types that are tech-focused
-    /\b(hackathon|code|workshop|conference|summit|meetup)\s+(about|on|for|with)\s+(tech|software|code|ai|ml|development)\b/i,
-    // Specific tech domains
-    /\b(frontend|backend|fullstack|devops|cloud|aws|azure|gcp|docker|kubernetes)\b/i,
-    // Explicit "tech" mention
-    /\btech\b/i
+    // Tech stack keywords (all featured searches use these)
+    /\b(react|vue|angular|javascript|typescript|python|java|node|golang|rust|swift)\b/i,
+    // Event types combined with tech terms (covers "react workshop", "python conference", etc.)
+    /\b(react|vue|angular|javascript|typescript|python|java|node|ai|ml|machine learning|data science|web development|frontend|backend|fullstack|tech)\s+(workshop|conference|meetup|summit|bootcamp|event|training)\b/i,
+    /\b(workshop|conference|meetup|summit|bootcamp|event|training)\s+(about|on|for|with|in|on)\s+(react|vue|angular|javascript|typescript|python|java|node|ai|ml|machine learning|data science|web development|frontend|backend|fullstack|tech|software|code|development|programming)\b/i,
+    // Event types that are tech-focused (standalone patterns)
+    /\b(hackathon|code|workshop|conference|summit|meetup|bootcamp)\s+(about|on|for|with|in)\s+(tech|software|code|ai|ml|development|data|programming)\b/i,
+    // Specific tech domains (all featured searches)
+    /\b(frontend|backend|fullstack|devops|cloud|aws|azure|gcp|docker|kubernetes|web development)\b/i,
+    // Explicit "tech" mention (covers "tech conference 2025")
+    /\btech\b/i,
+    // Geospatial AI, Applied AI, etc.
+    /\b(geospatial|applied|generative|predictive)\s+(ai|intelligence)\b/i
   ]
   
-  const hasTechIndicator = techIndicators.some(pattern => pattern.test(text))
-  if (!hasTechIndicator) {
+  const hasTechKeyword = techKeywords.some(pattern => pattern.test(text))
+  const hasTechStack = techStack.length > 0
+  
+  // Allow if has tech stack OR tech keywords OR explicit "tech" mention
+  if (!hasTechStack && !hasTechKeyword && !hasExplicitTech) {
     return false
   }
   
@@ -398,18 +406,25 @@ export function isTechEvent(event: any, extractTechStack: (title: string, desc: 
     }
   }
   
-  // Quality check
+  // LIGHTER quality check - only reject very low quality
   const qualityScore = calculateQualityScore(event)
-  if (qualityScore < 30) {
+  if (qualityScore < 20) { // Lowered from 30 to 20 - be more lenient
     return false
   }
   
-  // Additional check: If tech stack has generic terms, verify context
-  const genericTechTerms = ['mobile', 'web', 'frontend', 'backend']
-  const hasGenericOnly = techStack.every(tech => genericTechTerms.includes(tech.toLowerCase()))
-  if (hasGenericOnly && !text.match(/\b(development|engineering|developer|programming|coding)\b/i)) {
-    // If only generic terms and no development context, reject
-    return false
+  // Only block if it's clearly non-tech (not just missing context)
+  // If we have tech keywords, trust them
+  if (hasTechKeyword || hasTechStack) {
+    // Only reject if it's obviously non-tech (like wine tasting with "ai" in description)
+    const obviousNonTech = [
+      /(wine|beer|cocktail|drinks|dinner|lunch|brunch)\s+(event|party|reception|tasting)/i,
+      /(yoga|fitness|workout|gym|kettlebell|meditation)/i,
+      /(music|concert|theater|art|gallery|exhibition|poetry|writing|book)\s+(event|show|exhibition)/i,
+    ]
+    
+    if (!obviousNonTech.some(pattern => pattern.test(text))) {
+      return true // Allow through if has tech keywords and not obviously non-tech
+    }
   }
   
   return true
