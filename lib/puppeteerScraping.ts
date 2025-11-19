@@ -585,4 +585,3 @@ export async function* scrapeLumaEventsStreamingPuppeteer(query: string, maxItem
   }
 }
 
-

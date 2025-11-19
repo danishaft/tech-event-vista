@@ -77,7 +77,3 @@ if (process.env.NODE_ENV === 'development' && !globalForQueryListener.queryListe
     })
   })
 }
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
-
-

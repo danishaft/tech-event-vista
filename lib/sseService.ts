@@ -1,5 +1,5 @@
 import { searchService, SearchFilters } from './searchService'
-import { scrapeLumaEvents, scrapeEventbriteEvents, scrapeLumaEventsStreaming, scrapeEventbriteEventsStreaming, processAndSaveEvents } from './apifyService'
+import { scrapeLumaEvents, scrapeEventbriteEvents, scrapeLumaEventsStreaming, scrapeEventbriteEventsStreaming, processAndSaveEvents } from './scrapingService'
 import { prisma } from './prisma'
 
 export interface SSEEvent {
@@ -473,7 +473,7 @@ export class SSEService {
   }
 
   /**
-   * Start live scraping using existing apifyService functions
+   * Start live scraping using existing scrapingService functions
    * @param query - Search query
    * @param platforms - Platforms to scrape
    * @param city - City to search in
