@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import { EventCard } from "@/components/EventCard";
 import { EventDialog } from "@/components/EventDialog";
-import { FilterBar } from "@/components/FilterBar";
 import { BottomNavigation } from "@/components/BottomNavigation";
-import { QuickSearch } from "@/components/QuickSearch";
+import { HeroSection } from "@/components/HeroSection";
+import { FeaturedEvents } from "@/components/FeaturedEvents";
+import { Footer } from "@/components/Footer";
 import { useEvents, Event } from "@/hooks/useEvents";
-import { TrendingUp, Users, Calendar, Star } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export default function HomePage() {
   const router = useRouter();
@@ -19,27 +22,16 @@ export default function HomePage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    eventType: "all",
-    city: "all", 
-    price: "all",
-    date: "all"
-  });
+  const [quickFilter, setQuickFilter] = useState("all");
 
   const { events: dbEvents, isLoading } = useEvents();
 
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handleClearFilters = () => {
-    setFilters({
-      eventType: "all",
-      city: "all",
-      price: "all", 
-      date: "all"
-    });
-  };
+  const quickFilters = [
+    { label: "All", value: "all" },
+    { label: "This Week", value: "this-week" },
+    { label: "This Month", value: "this-month" },
+    { label: "Free Events", value: "free" },
+  ];
 
   // Map database events to component format
   const events = useMemo(() => {
@@ -84,155 +76,149 @@ export default function HomePage() {
   }, [dbEvents]);
 
   const filteredEvents = useMemo(() => {
-    return events.filter((event: any) => {
-      if (filters.eventType !== "all" && event.eventType !== filters.eventType) return false;
-      if (filters.city !== "all" && event.city !== filters.city) return false;
-      if (filters.price !== "all") {
-        if (filters.price === "free" && event.price !== "Free") return false;
-        if (filters.price === "paid" && event.price === "Free") return false;
-      }
-      return true;
-    });
-  }, [events, filters]);
-
-  // Stats for the dashboard
-  const stats = {
-    totalEvents: dbEvents.length,
-    thisWeek: dbEvents.filter((event: Event) => {
-      const eventDate = new Date(event.eventDate);
+    let filtered = events;
+    
+    // Apply quick filter
+    if (quickFilter === "this-week") {
       const now = new Date();
       const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      return eventDate >= now && eventDate <= weekFromNow;
-    }).length,
-    averageRating: dbEvents.length > 0 ? (dbEvents.reduce((acc: number, event: Event) => acc + (event.organizerRating || 4.5), 0) / dbEvents.length).toFixed(1) : '0.0',
-    totalAttendees: dbEvents.reduce((acc: number, event: Event) => acc + event.registeredCount, 0)
-  };
+      filtered = filtered.filter((event: any) => {
+        const eventDate = new Date(event.date);
+        return eventDate >= now && eventDate <= weekFromNow;
+      });
+    } else if (quickFilter === "this-month") {
+      const now = new Date();
+      const monthFromNow = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      filtered = filtered.filter((event: any) => {
+        const eventDate = new Date(event.date);
+        return eventDate >= now && eventDate <= monthFromNow;
+      });
+    } else if (quickFilter === "free") {
+      filtered = filtered.filter((event: any) => event.price === "Free");
+    }
+    
+    return filtered;
+  }, [events, quickFilter]);
+
+  // Show only 2 rows (8 events for 4 columns, 6 for 3 columns, etc.)
+  const displayedEvents = filteredEvents.slice(0, 8);
 
   return (
     <div className="min-h-screen bg-background">
       <Header 
         onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        onSearch={(query) => {
-          // Redirect to search results page
-          router.push(`/search?q=${encodeURIComponent(query)}&platform=eventbrite`);
-        }}
-        isSearching={false}
       />
       
-      <main className="max-w-7xl mx-auto px-6 py-8 pb-20 md:pb-8">
+      <main className="pb-20 md:pb-8">
         {/* Hero Section */}
-        <div className="mb-10">
-          <h1 className="font-heading text-3xl md:text-4xl font-bold mb-2">
-            Discover Amazing Tech Events
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Find workshops, conferences, and meetups in your area
-          </p>
-        </div>
+        <HeroSection />
 
-        {/* Quick Search Section */}
-        <div className="mb-12">
-          <QuickSearch />
-        </div>
+        {/* Featured Events Section - ARKLYTE Style */}
+        <FeaturedEvents />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Calendar className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalEvents}</p>
-                <p className="text-xs text-muted-foreground">Total Events</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-accent/10 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.thisWeek}</p>
-                <p className="text-xs text-muted-foreground">This Week</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-warning/10 rounded-lg">
-                <Star className="h-5 w-5 text-warning" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.averageRating}</p>
-                <p className="text-xs text-muted-foreground">Avg Rating</p>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-success/10 rounded-lg">
-                <Users className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.totalAttendees.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">Attendees</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Main Content - ARKLYTE Style "Suggestions for discovery" */}
+        <div className="max-w-7xl mx-auto px-6 pt-spacing-section pb-spacing-section">
+          {/* Section Header with View All Button */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="font-heading text-2xl md:text-3xl font-bold mb-2 text-foreground">
+                Discover Events
+              </h2>
+              <p className="text-muted-foreground text-base md:text-lg">
+                Popular events recommended for you
+              </p>
+            </div>
+            <Link href="/events">
+              <Button 
+                variant="outline" 
+                className="border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-doow-sm md:rounded-doow-md"
+              >
+                View All
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
 
-        {/* Filters */}
-        <FilterBar 
-          selectedFilters={filters}
-          onFilterChange={handleFilterChange}
-          onClearFilters={handleClearFilters}
-        />
-
-        {/* Events Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i} className="h-40">
-                <CardContent className="p-5">
-                  <Skeleton className="h-full w-full" />
-                </CardContent>
-              </Card>
+          {/* Quick Filters - ARKLYTE Style (Left side) */}
+          <div className="flex items-center gap-3 mb-6 flex-wrap">
+            {quickFilters.map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => setQuickFilter(filter.value)}
+                className={`px-4 py-2 rounded-doow-sm md:rounded-doow-md text-sm font-medium transition-all ${
+                  quickFilter === filter.value
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-surface text-muted-foreground hover:bg-surface-hover hover:text-foreground'
+                }`}
+              >
+                {filter.label}
+              </button>
             ))}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {filteredEvents.map((event: any) => (
-              <EventCard 
-                key={event.id} 
-                event={event} 
-                onClick={() => {
-                  setSelectedEvent(event);
-                  setIsDialogOpen(true);
-                }}
-              />
-            ))}
-          </div>
-        )}
 
-        {/* Event Details Dialog */}
-        <EventDialog 
-          event={selectedEvent}
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-        />
+          {/* Events Grid - 2 Rows Only */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <Card key={i} className="rounded-lg overflow-hidden">
+                  <div className="p-0">
+                    <Skeleton className="h-56 w-full" />
+                    <div className="p-5 space-y-3">
+                      <Skeleton className="h-6 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {displayedEvents.map((event: any) => (
+                  <EventCard 
+                    key={event.id} 
+                    event={event} 
+                    onClick={() => {
+                      setSelectedEvent(event);
+                      setIsDialogOpen(true);
+                    }}
+                  />
+                ))}
+              </div>
+              {filteredEvents.length > 8 && (
+                <div className="mt-8 text-center">
+                  <Link href="/events">
+                    <Button 
+                      variant="outline" 
+                      className="border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-doow-sm md:rounded-doow-md"
+                    >
+                      View All Events ({filteredEvents.length})
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
 
-        {filteredEvents.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground text-lg">No events found matching your filters.</p>
-            <p className="text-muted-foreground">Try adjusting your search criteria.</p>
-          </div>
-        )}
+          {/* Event Details Dialog */}
+          <EventDialog 
+            event={selectedEvent}
+            open={isDialogOpen}
+            onOpenChange={setIsDialogOpen}
+          />
+
+          {filteredEvents.length === 0 && !isLoading && (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground text-lg mb-2">No events found matching your filters.</p>
+              <p className="text-muted-foreground-light">Try adjusting your search criteria.</p>
+            </div>
+          )}
+        </div>
       </main>
+
+      <Footer />
 
       <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
     </div>

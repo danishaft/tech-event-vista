@@ -137,8 +137,8 @@ export const EventDialog = ({ event, open, onOpenChange }: EventDialogProps) => 
             }}
             disabled={!event.externalUrl}
           >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            View on {event.source}
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Register for Event
           </Button>
         </div>
       </DialogContent>

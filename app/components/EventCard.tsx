@@ -16,7 +16,8 @@ export const EventCard = ({ event, onClick }: EventCardProps) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
       month: 'short', 
-      day: 'numeric' 
+      day: 'numeric',
+      year: 'numeric'
     });
   };
 
@@ -35,74 +36,75 @@ export const EventCard = ({ event, onClick }: EventCardProps) => {
 
   return (
     <Card 
-      className="group relative bg-card border-0 overflow-hidden transition-all duration-300 hover:bg-surface-hover hover:shadow-spotify-hover cursor-pointer flex h-40"
+      className="group relative bg-card border border-border overflow-hidden transition-all duration-300 hover:shadow-card-hover cursor-pointer rounded-lg"
       onClick={onClick}
     >
-      {/* Image Section - Left Side */}
-      <div className="relative w-56 flex-shrink-0 overflow-hidden bg-muted/50">
+      {/* Image Section - Top (ARKLYTE Style) */}
+      <div className="relative w-[calc(100%-24px)] h-48 md:h-56 overflow-hidden bg-muted/50 mx-3 mt-3 rounded-lg">
         <img 
           src={event.imageUrl} 
           alt={event.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent"></div>
+        
         {/* Price Badge */}
-        <div className="absolute top-2 left-2">
-          <Badge className={`${event.price === 'Free' ? 'bg-success text-background' : 'bg-background/90 text-foreground'} backdrop-blur-md border-0 font-semibold text-xs`}>
+        <div className="absolute top-3 left-3">
+          <Badge className={`${event.price === 'Free' ? 'bg-success text-white' : 'bg-card/95 text-foreground'} border-0 font-semibold text-sm px-3 py-1 shadow-md`}>
             {event.price}
           </Badge>
         </div>
-      </div>
 
-      {/* Content Section - Right Side */}
-      <div className="flex-1 p-5 flex flex-col justify-between relative min-w-0">
         {/* Save Button */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             setIsSaved(!isSaved);
           }}
-          className="absolute top-2 right-2 p-2 rounded-full bg-background/60 backdrop-blur-md hover:bg-background/80 transition-all duration-200 hover:scale-110 opacity-0 group-hover:opacity-100"
+          className="absolute top-3 right-3 p-2 rounded-full bg-card/90 backdrop-blur-sm hover:bg-card transition-all duration-200 hover:scale-110 shadow-md"
         >
           <Heart 
-            className={`h-4 w-4 transition-all ${isSaved ? 'fill-primary text-primary' : 'text-foreground'}`}
+            className={`h-5 w-5 transition-all ${isSaved ? 'fill-primary text-primary' : 'text-muted-foreground'}`}
           />
         </button>
+      </div>
 
-        <div className="space-y-2 pr-10">
-          {/* Title */}
-          <h3 className="font-heading font-bold text-base leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-            {event.title}
-          </h3>
+      {/* Content Section - Bottom (ARKLYTE Style) */}
+      <div className="p-5 md:p-6 space-y-3">
+        {/* Title */}
+        <h3 className="font-heading font-bold text-lg md:text-xl leading-tight line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+          {event.title}
+        </h3>
 
-          {/* Date & Location */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5" />
-              <span className="text-xs">{formatDate(event.date)}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="text-xs truncate">{event.neighborhood}, {event.city}</span>
-            </div>
+        {/* Date & Location */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Calendar className="h-4 w-4 flex-shrink-0" />
+            <span className="text-sm font-medium">{formatDate(event.date)}</span>
           </div>
-
-          {/* Tech Stack - Only show 2 */}
-          <div className="flex flex-wrap gap-1.5">
-            {event.techStack.slice(0, 2).map((tech) => (
-              <span 
-                key={tech} 
-                className={`text-xs px-2 py-0.5 rounded-full border ${getTechColor(tech)}`}
-              >
-                {tech}
-              </span>
-            ))}
-            {event.techStack.length > 2 && (
-              <span className="text-xs px-2 py-0.5 rounded-full border border-border/50 bg-muted/20 text-muted-foreground">
-                +{event.techStack.length - 2}
-              </span>
-            )}
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <MapPin className="h-4 w-4 flex-shrink-0" />
+            <span className="text-sm truncate">{event.neighborhood}, {event.city}</span>
           </div>
+        </div>
+
+        {/* Tech Stack */}
+        <div className="flex flex-wrap gap-2 pt-2">
+          {event.techStack.slice(0, 3).map((tech) => (
+            <span 
+              key={tech} 
+              className={`text-xs px-2.5 py-1 rounded-full border font-medium ${getTechColor(tech)}`}
+            >
+              {tech}
+            </span>
+          ))}
+          {event.techStack.length > 3 && (
+            <span className="text-xs px-2.5 py-1 rounded-full border border-border bg-muted/20 text-muted-foreground font-medium">
+              +{event.techStack.length - 3}
+            </span>
+          )}
         </div>
       </div>
     </Card>

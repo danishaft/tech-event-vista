@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:redis": "tsx scripts/test-redis-connection.ts"
+    "worker": "tsx scripts/start-worker.ts",
+    "worker:dev": "tsx watch scripts/start-worker.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
