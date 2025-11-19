@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { after } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { scrapeLumaEvents, scrapeEventbriteEvents, processAndSaveEvents } from '@/lib/apifyService'
+import { 
+  scrapeLumaEvents, 
+  scrapeEventbriteEvents, 
+  processPuppeteerEventbriteEvents,
+  processPuppeteerLumaEvents,
+  processApifyEventbriteEvents,
+  processApifyLumaEvents
+} from '@/lib/scrapingService'
 
 // Direct processing - no BullMQ for batch scraping
 // Search also uses direct processing via SSE (no BullMQ)
@@ -38,7 +45,7 @@ function verifyCronRequest(request: NextRequest): boolean {
 /**
  * Start scraping job - shared logic for both GET (cron) and POST (manual)
  */
-async function startScrapingJob(cities: string[], platforms: string[], maxEvents: number) {
+async function startScrapingJob(cities: string[], platforms: string[], maxEvents: number, body?: any) {
   // Create job record with retry logic for database connection
   const jobId = `scraping-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   
@@ -105,15 +112,22 @@ async function startScrapingJob(cities: string[], platforms: string[], maxEvents
 
           try {
             let events: any[] = []
-
+            let source: 'apify' | 'puppeteer' = 'puppeteer'
+            
             if (validPlatform === 'luma') {
               console.log(`🔍 [BATCH-SCRAPING] Starting Luma scrape for ${city}...`)
-              events = await scrapeLumaEvents('tech', maxEvents)
-              console.log(`📊 [BATCH-SCRAPING] Luma returned ${events.length} events for ${city}`, {
+              // Use query from body if provided, otherwise default to 'tech'
+              const lumaQuery = body?.query || body?.lumaQuery || 'tech'
+              console.log(`   Using query: "${lumaQuery}"`)
+              const result = await scrapeLumaEvents(lumaQuery, maxEvents)
+              events = result.events
+              source = result.source
+              console.log(`📊 [BATCH-SCRAPING] Luma returned ${events.length} events for ${city} (source: ${source})`, {
                 jobId,
                 platform: validPlatform,
                 city,
                 eventsFound: events.length,
+                source,
                 sampleEvents: events.slice(0, 2).map(e => ({ title: e.name || e.title, id: e.id || e.api_id }))
               })
             } else if (validPlatform === 'eventbrite') {
@@ -122,12 +136,14 @@ async function startScrapingJob(cities: string[], platforms: string[], maxEvents
               // Use multiple tech-related search queries for better results
               const techQueries = ['ai', 'data science', 'python', 'reactjs', 'javascript', 'machine learning']
               let allEvents: any[] = []
+              let allSources: ('apify' | 'puppeteer')[] = []
               
               for (const query of techQueries) {
                 console.log(`   🔎 Searching: ${query}`)
-                const queryEvents = await scrapeEventbriteEvents(city, query)
-                allEvents.push(...queryEvents)
-                console.log(`   ✅ Found ${queryEvents.length} events for "${query}"`)
+                const result = await scrapeEventbriteEvents(city, query)
+                allEvents.push(...result.events)
+                allSources.push(result.source)
+                console.log(`   ✅ Found ${result.events.length} events for "${query}" (source: ${result.source})`)
                 
                 // Small delay between queries to avoid rate limiting
                 await new Promise(resolve => setTimeout(resolve, 2000))
@@ -139,27 +155,49 @@ async function startScrapingJob(cities: string[], platforms: string[], maxEvents
               )
               
               events = uniqueEvents
-              console.log(`📊 [BATCH-SCRAPING] Eventbrite returned ${events.length} unique events for ${city} (from ${allEvents.length} total)`, {
+              // Use the most common source (or 'apify' if any query used Apify)
+              source = allSources.includes('apify') ? 'apify' : 'puppeteer'
+              
+              console.log(`📊 [BATCH-SCRAPING] Eventbrite returned ${events.length} unique events for ${city} (from ${allEvents.length} total, source: ${source})`, {
                 jobId,
                 platform: validPlatform,
                 city,
                 eventsFound: events.length,
+                source,
                 sampleEvents: events.slice(0, 3).map(e => ({ title: e.name || e.title, query: 'multiple', url: e.url }))
               })
             }
 
             if (events.length > 0) {
-              console.log(`💾 [BATCH-SCRAPING] Processing ${events.length} ${validPlatform} events for ${city}...`, {
+              console.log(`💾 [BATCH-SCRAPING] Processing ${events.length} ${source} ${validPlatform} events for ${city}...`, {
                 jobId,
                 platform: validPlatform,
                 city,
+                source,
               })
-              const saved = await processAndSaveEvents(events, validPlatform, city)
+              
+              // Call the correct processor based on source
+              let saved = 0
+              if (validPlatform === 'luma') {
+                if (source === 'apify') {
+                  saved = await processApifyLumaEvents(events, city)
+                } else {
+                  saved = await processPuppeteerLumaEvents(events, city)
+                }
+              } else if (validPlatform === 'eventbrite') {
+                if (source === 'apify') {
+                  saved = await processApifyEventbriteEvents(events, city)
+                } else {
+                  saved = await processPuppeteerEventbriteEvents(events, city)
+                }
+              }
+              
               totalSaved += saved
-              console.log(`✅ [BATCH-SCRAPING] Saved ${saved}/${events.length} ${validPlatform} events for ${city}`, {
+              console.log(`✅ [BATCH-SCRAPING] Saved ${saved}/${events.length} ${source} ${validPlatform} events for ${city}`, {
                 jobId,
                 platform: validPlatform,
                 city,
+                source,
                 saved,
                 totalFound: events.length,
               })
@@ -242,9 +280,9 @@ export async function GET(request: NextRequest) {
     // Default values for cron-triggered scraping
     const cities = ['Seattle', 'San Francisco', 'New York']
     const platforms = ['luma', 'eventbrite']
-    const maxEvents = 20 // More events for daily cron job
+    const maxEvents = 50 // Scrape up to 50 events per platform per city
 
-    const jobId = await startScrapingJob(cities, platforms, maxEvents)
+    const jobId = await startScrapingJob(cities, platforms, maxEvents, { query: 'tech' })
     
     console.log('✅ [CRON] Scraping job started:', jobId)
     
@@ -280,9 +318,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const cities = body.cities || ['Seattle', 'San Francisco', 'New York']
     const platforms = body.platforms || ['luma', 'eventbrite']
-    const maxEvents = body.maxEvents || 5
+    const maxEvents = body.maxEvents || 50 // Default to 50 events per platform per city
 
-    const jobId = await startScrapingJob(cities, platforms, maxEvents)
+    const jobId = await startScrapingJob(cities, platforms, maxEvents, body)
     
     console.log('✅ [MANUAL] Scraping job started:', jobId)
     
