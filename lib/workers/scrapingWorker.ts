@@ -23,12 +23,6 @@ import {
 async function processScrapingJob(job: { data: ScrapingJobData }) {
   const { jobId, query, platforms, city } = job.data
 
-  console.log(`🚀 [WORKER] Processing scraping job: ${jobId}`, {
-    query,
-    platforms,
-    city,
-  })
-
   let totalSaved = 0
   let foundResults = false
 
@@ -44,34 +38,21 @@ async function processScrapingJob(job: { data: ScrapingJobData }) {
 
       const validPlatform: 'luma' | 'eventbrite' = platform
 
-      console.log(`🎯 [WORKER] Starting ${validPlatform} scraping for ${city}`, {
-        jobId,
-        platform: validPlatform,
-        city,
-        query,
-      })
-
       try {
         let events: any[] = []
         let source: 'apify' | 'puppeteer' = 'puppeteer'
 
         if (validPlatform === 'luma') {
-          console.log(`🔍 [WORKER] Starting Luma scrape for query: "${query}"`)
           const result = await scrapeLumaEvents(query, 50)
           events = result.events
           source = result.source
-          console.log(`📊 [WORKER] Luma returned ${events.length} events (source: ${source})`)
         } else if (validPlatform === 'eventbrite') {
-          console.log(`🔍 [WORKER] Starting Eventbrite scrape for: ${city} - "${query}"`)
           const result = await scrapeEventbriteEvents(city, query)
           events = result.events
           source = result.source
-          console.log(`📊 [WORKER] Eventbrite returned ${events.length} events (source: ${source})`)
         }
 
         if (events.length > 0) {
-          console.log(`💾 [WORKER] Processing ${events.length} ${source} ${validPlatform} events for ${city}...`)
-
           // Process events in batches (not one-by-one)
           let saved = 0
           if (validPlatform === 'luma') {
@@ -90,11 +71,7 @@ async function processScrapingJob(job: { data: ScrapingJobData }) {
 
           totalSaved += saved
           foundResults = true
-          console.log(`✅ [WORKER] Saved ${saved}/${events.length} ${source} ${validPlatform} events for ${city}`)
-          console.log(`✅ [WORKER] Found results from ${validPlatform}, stopping platform search`)
           break // Stop processing other platforms - we found results!
-        } else {
-          console.log(`⚠️ [WORKER] No events found for ${validPlatform} in ${city}, trying next platform...`)
         }
       } catch (platformError) {
         console.error(`❌ [WORKER] ${validPlatform} scraping failed for ${city}`, {
@@ -104,12 +81,7 @@ async function processScrapingJob(job: { data: ScrapingJobData }) {
           error: (platformError as Error).message,
         })
         // Continue to next platform if this one failed
-        console.log(`⚠️ [WORKER] ${validPlatform} failed, trying next platform...`)
       }
-    }
-
-    if (!foundResults) {
-      console.log(`⚠️ [WORKER] No events found from any platform for query: "${query}" in ${city}`)
     }
 
     // Update job status to completed
@@ -120,13 +92,6 @@ async function processScrapingJob(job: { data: ScrapingJobData }) {
         completedAt: new Date(),
         eventsScraped: totalSaved,
       },
-    })
-
-    console.log(`🎉 [WORKER] Job ${jobId} completed successfully`, {
-      jobId,
-      totalSaved,
-      platforms,
-      city,
     })
 
     return { success: true, totalSaved }
@@ -172,12 +137,11 @@ export const scrapingWorker = new Worker<ScrapingJobData>(
 
 // Worker event handlers for debugging
 scrapingWorker.on('active', (job) => {
-  console.log(`🚀 [WORKER] Job ${job.id} is now active (processing started)`)
-  console.log(`   Job data:`, job.data)
+  // Job started
 })
 
 scrapingWorker.on('completed', (job) => {
-  console.log(`✅ [WORKER] Job ${job.id} completed successfully`)
+  // Job completed
 })
 
 scrapingWorker.on('failed', (job, err) => {
@@ -200,16 +164,12 @@ scrapingWorker.on('stalled', (jobId) => {
 
 // Verify worker is ready
 scrapingWorker.on('ready', () => {
-  console.log('✅ [WORKER] Worker is ready and waiting for jobs')
+  // Worker ready
 })
 
 // Log when worker closes
 scrapingWorker.on('closed', () => {
-  console.log('⚠️ [WORKER] Worker connection closed')
+  // Worker closed
 })
-
-console.log('✅ Scraping worker initialized and listening for jobs')
-console.log(`📋 Queue name: scraping-queue`)
-console.log(`🔌 Connection: ${connection.status === 'ready' ? '✅ Ready' : '⏳ Connecting...'}`)
 
 

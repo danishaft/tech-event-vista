@@ -1,8 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -14,8 +12,8 @@ model Event {
   id                   String    @id @default(cuid())
   title                String
   description          String?
-  eventType            String // workshop, conference, meetup, hackathon
-  status               String    @default("active") // active, cancelled, sold_out
+  eventType            String
+  status               String    @default("active")
   eventDate            DateTime
   eventEndDate         DateTime?
   venueName            String?
@@ -32,35 +30,31 @@ model Event {
   organizerRating      Float?
   capacity             Int?
   registeredCount      Int       @default(0)
-  techStack            String[] // Array of technologies
+  techStack            String[]
   qualityScore         Float     @default(0)
-  completenessScore    Float     @default(0) // 0-100, calculated completeness
+  completenessScore    Float     @default(0)
   externalUrl          String?
   imageUrl             String?
-  sourcePlatform       String // eventbrite, meetup, luma
-  sourceId             String // Original ID from source platform
+  sourcePlatform       String
+  sourceId             String
   scrapedAt            DateTime  @default(now())
   lastUpdated          DateTime  @updatedAt
   createdAt            DateTime  @default(now())
   
-  // Data Enrichment Fields
-  dataEnriched         Boolean   @default(false) // Was this enriched by LLM?
-  enrichmentAttempts  Int       @default(0) // How many times we tried to enrich
-  topics               String[]  // Topics/themes (AI-extracted)
-  audienceLevel        String?   // beginner, intermediate, advanced
-  format               String?   // hands-on, lecture, panel, networking, workshop
-  summary              String?   // AI-generated short summary (100-200 chars)
-  keyPoints            String[]  // AI-extracted key points
+  dataEnriched         Boolean   @default(false)
+  enrichmentAttempts  Int       @default(0)
+  topics               String[]
+  audienceLevel        String?
+  format               String?
+  summary              String?
+  keyPoints            String[]
   
-  // Enhanced Organizer
-  organizerUrl         String?   // Link to organizer profile
+  organizerUrl         String?
   
-  // Enhanced Location
-  latitude            Float?    // For map features
-  longitude           Float?    // For map features
-  timezone            String?   // Event timezone
+  latitude            Float?
+  longitude           Float?
+  timezone            String?
 
-  // Relations
   savedEvents     SavedEvent[]
   eventCategories EventCategory[]
 
@@ -69,12 +63,12 @@ model Event {
   @@index([eventDate])
   @@index([eventType])
   @@index([techStack])
-  @@index([status]) // For filtering active events
-  @@index([qualityScore]) // For sorting
+  @@index([status])
+  @@index([qualityScore])
   @@index([title, eventDate, city], name: "idx_title_date_city")
   @@index([externalUrl], name: "idx_external_url")
-  @@index([status, city, eventDate], name: "idx_status_city_date") // Composite for common queries
-  @@index([status, eventDate], name: "idx_status_date") // For date filtering
+  @@index([status, city, eventDate], name: "idx_status_city_date")
+  @@index([status, eventDate], name: "idx_status_date")
 }
 
 model User {
@@ -83,11 +77,10 @@ model User {
   firstName       String?
   lastName        String?
   profileImageUrl String?
-  preferences     Json? // User preferences as JSON
+  preferences     Json?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  // Relations
   savedEvents SavedEvent[]
 }
 
@@ -98,7 +91,6 @@ model SavedEvent {
   savedAt DateTime @default(now())
   notes   String?
 
-  // Relations
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -109,11 +101,10 @@ model SavedEvent {
 model EventCategory {
   id         String @id @default(cuid())
   eventId    String
-  category   String // technology, event_type, etc.
-  value      String // react, conference, etc.
+  category   String
+  value      String
   confidence Float  @default(1.0)
 
-  // Relations
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, category, value])
@@ -122,11 +113,11 @@ model EventCategory {
 
 model ScrapingJob {
   id            String    @id @default(cuid())
-  platform      String // eventbrite, meetup, luma
-  status        String // pending, running, completed, failed
-  query         String? // Search query that triggered scraping
-  city          String? // City being scraped
-  platforms     String[] // Platforms being scraped
+  platform      String
+  status        String
+  query         String?
+  city          String?
+  platforms     String[]
   startedAt     DateTime?
   completedAt   DateTime?
   errorMessage  String?

@@ -31,7 +31,4 @@ export const scrapingQueue = new Queue<ScrapingJobData>('scraping-queue', {
   },
 })
 
-// Log queue creation
-console.log('✅ Scraping queue initialized')
-
 
