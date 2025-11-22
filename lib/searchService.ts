@@ -1,1236 +1,243 @@
-import { prisma } from './prisma'
-import { cacheService } from './cache'
+import { prisma } from "./prisma";
+import type { EventWithCategories, EventWithSelectedFields } from "@/app/types/events";
 
 export interface SearchFilters {
-  city?: string
-  eventType?: string
-  price?: string
-  date?: string
-  platforms?: string[]
+	city?: string;
+	eventType?: string;
+	price?: string;
+	date?: string;
+	platforms?: string[];
 }
 
+const EVENT_SELECT = {
+	id: true,
+	title: true,
+	description: true,
+	eventType: true,
+	status: true,
+	eventDate: true,
+	eventEndDate: true,
+	venueName: true,
+	venueAddress: true,
+	city: true,
+	country: true,
+	isOnline: true,
+	isFree: true,
+	priceMin: true,
+	priceMax: true,
+	currency: true,
+	organizerName: true,
+	organizerDescription: true,
+	organizerRating: true,
+	capacity: true,
+	registeredCount: true,
+	techStack: true,
+	qualityScore: true,
+	externalUrl: true,
+	imageUrl: true,
+	sourcePlatform: true,
+	sourceId: true,
+	scrapedAt: true,
+	lastUpdated: true,
+	createdAt: true,
+} as const;
+
 export interface SearchResult {
-  events: any[]
-  total: number
-  source: 'database' | 'cache'
-  cachedAt?: Date
+	events: EventWithCategories[];
+	total: number;
+	source: "database";
+}
+
+// Manual types for Prisma where clauses (to avoid Prisma type imports)
+interface DateTimeFilter {
+	gte?: Date;
+	lt?: Date;
+	lte?: Date;
+	gt?: Date;
+}
+
+interface StringFilter {
+	contains?: string;
+	mode?: "insensitive" | "default";
+	equals?: string;
+}
+
+interface EventWhereInput {
+	status?: string;
+	eventDate?: DateTimeFilter;
+	city?: StringFilter | string;
+	eventType?: string;
+	isFree?: boolean;
+	OR?: Array<{
+		title?: StringFilter;
+		description?: StringFilter;
+		techStack?: { hasSome: string[] };
+		organizerName?: StringFilter;
+		venueName?: StringFilter;
+	}>;
 }
 
 /**
- * Database-first search service with full-text search capabilities
- * Implements PostgreSQL full-text search with proper indexing strategy
+ * Build Prisma where clause for event search
  */
-export class SearchService {
-  /**
-   * Search events in database with full-text search and filtering
-   * @param query - Search query string
-   * @param filters - Additional filters to apply
-   * @param limit - Maximum number of results to return
-   * @returns Search results with events and metadata
-   */
-  async searchDatabase(
-    query: string,
-    filters: SearchFilters = {},
-    limit: number = 50
-  ): Promise<SearchResult> {
-    try {
-      // Build where clause with full-text search - always filter future events
-      const now = new Date()
-      const where = this.buildSearchWhereClause(query, filters)
-      where.eventDate = { gte: now } // Only future events
+function buildSearchWhereClause(
+	query: string | undefined,
+	filters: SearchFilters,
+	now: Date,
+): EventWhereInput {
+	const where: EventWhereInput = {
+		status: "active",
+		eventDate: { gte: now },
+	};
 
-      // Execute search query with proper ordering - select only needed fields
-      // Use batch fetch for EventCategory to avoid N+1 (same fix as events API)
-      const [eventsRaw, total] = await Promise.all([
-        prisma.event.findMany({
-          where,
-          orderBy: [
-            { qualityScore: 'desc' },
-            { eventDate: 'asc' },
-          ],
-          take: limit,
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            eventType: true,
-            eventDate: true,
-            eventEndDate: true,
-            venueName: true,
-            venueAddress: true,
-            city: true,
-            country: true,
-            isOnline: true,
-            isFree: true,
-            priceMin: true,
-            priceMax: true,
-            currency: true,
-            organizerName: true,
-            techStack: true,
-            qualityScore: true,
-            externalUrl: true,
-            imageUrl: true,
-            sourcePlatform: true,
-          },
-        }),
-        prisma.event.count({ where }),
-      ])
+	// Full-text search across multiple fields
+	if (query?.trim()) {
+		const searchTerm = query.trim();
+		where.OR = [
+			{ title: { contains: searchTerm, mode: "insensitive" } },
+			{ description: { contains: searchTerm, mode: "insensitive" } },
+			{ techStack: { hasSome: [searchTerm] } },
+			{ organizerName: { contains: searchTerm, mode: "insensitive" } },
+			{ venueName: { contains: searchTerm, mode: "insensitive" } },
+		];
+	}
 
-      // Batch fetch EventCategory to avoid N+1 queries
-      const eventIds = eventsRaw.map(e => e.id)
-      const categories = eventIds.length > 0
-        ? await prisma.eventCategory.findMany({
-            where: { eventId: { in: eventIds } },
-            select: {
-              eventId: true,
-              category: true,
-              value: true,
-            },
-          })
-        : []
+	// Apply filters
+	if (filters.city && filters.city !== "all") {
+		where.city = { equals: filters.city, mode: "insensitive" };
+	}
 
-      // Group categories by eventId
-      const categoriesByEventId = new Map<string, Array<{ category: string; value: string }>>()
-      for (const cat of categories) {
-        if (!categoriesByEventId.has(cat.eventId)) {
-          categoriesByEventId.set(cat.eventId, [])
-        }
-        categoriesByEventId.get(cat.eventId)!.push({
-          category: cat.category,
-          value: cat.value,
-        })
-      }
+	if (filters.eventType && filters.eventType !== "all") {
+		where.eventType = filters.eventType;
+	}
 
-      // Map events with their categories
-      const events = eventsRaw.map(event => ({
-        ...event,
-        eventCategories: categoriesByEventId.get(event.id) || [],
-      }))
+	if (filters.price && filters.price !== "all") {
+		where.isFree = filters.price === "free";
+	}
 
-      return {
-        events,
-        total,
-        source: 'database',
-      }
-    } catch (error: any) {
-      console.error('❌ [SEARCH] Database search error:', {
-        error: error.message,
-        stack: error.stack,
-        query,
-        filters
-      })
-      
-      // If it's a database connection error, return empty results instead of throwing
-      // This allows the search to fall back to live scraping
-      if (error.message?.includes('Can\'t reach database') || 
-          error.message?.includes('connection') ||
-          error.message?.includes('timeout')) {
-        console.warn('⚠️ [SEARCH] Database unavailable, will fall back to live scraping')
-        return {
-          events: [],
-          total: 0,
-          source: 'database',
-        }
-      }
-      
-      throw new Error(`Failed to search database: ${error.message}`)
-    }
-  }
+	// Date filter - properly merge with future events constraint
+	if (filters.date && filters.date !== "all") {
+		const dateFilter = buildDateFilter(filters.date, now);
+		if (dateFilter) {
+			// Merge date filter with existing future events constraint
+			where.eventDate = {
+				...dateFilter,
+				gte: dateFilter.gte || now,
+			};
+		}
+	}
 
-  /**
-   * Build Prisma where clause for search with full-text search
-   * Implements PostgreSQL full-text search best practices
-   */
-  private buildSearchWhereClause(query: string, filters: SearchFilters) {
-    const where: any = {
-      status: 'active',
-    }
-
-    // Full-text search implementation
-    if (query && query.trim()) {
-      const searchTerm = query.trim()
-      
-      // PostgreSQL full-text search with multiple strategies
-      where.OR = [
-        // Title contains search term (case-insensitive)
-        { title: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Description contains search term (case-insensitive)
-        { description: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Tech stack array contains search term
-        { techStack: { hasSome: [searchTerm] } },
-        
-        // Organizer name contains search term
-        { organizerName: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Venue name contains search term
-        { venueName: { contains: searchTerm, mode: 'insensitive' } },
-      ]
-    }
-
-    // Apply additional filters
-    this.applyFilters(where, filters)
-
-    return where
-  }
-
-  /**
-   * Apply additional filters to the where clause
-   * Maintains existing filtering logic from events API
-   */
-  private applyFilters(where: any, filters: SearchFilters) {
-    // City filter (case-insensitive)
-    if (filters.city && filters.city !== 'all') {
-      where.city = { equals: filters.city, mode: 'insensitive' }
-    }
-
-    // Event type filter
-    if (filters.eventType && filters.eventType !== 'all') {
-      where.eventType = filters.eventType
-    }
-
-    // Price filter
-    if (filters.price && filters.price !== 'all') {
-      if (filters.price === 'free') {
-        where.isFree = true
-      } else if (filters.price === 'paid') {
-        where.isFree = false
-      }
-    }
-
-    // Date filter
-    if (filters.date && filters.date !== 'all') {
-      this.applyDateFilter(where, filters.date)
-    }
-
-    // Platform filter
-    if (filters.platforms && filters.platforms.length > 0) {
-      where.sourcePlatform = { in: filters.platforms }
-    }
-  }
-
-  /**
-   * Apply date range filter to where clause
-   * Reuses existing date filtering logic
-   */
-  private applyDateFilter(where: any, dateFilter: string) {
-    const now = new Date()
-
-    switch (dateFilter) {
-      case 'today': {
-        const tomorrow = new Date(now)
-        tomorrow.setDate(tomorrow.getDate() + 1)
-        where.eventDate = {
-          gte: now,
-          lt: tomorrow,
-        }
-        break
-      }
-      case 'thisWeek': {
-        const nextWeek = new Date(now)
-        nextWeek.setDate(nextWeek.getDate() + 7)
-        where.eventDate = {
-          gte: now,
-          lt: nextWeek,
-        }
-        break
-      }
-      case 'thisMonth': {
-        const nextMonth = new Date(now)
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        where.eventDate = {
-          gte: now,
-          lt: nextMonth,
-        }
-        break
-      }
-      case 'nextMonth': {
-        const nextMonth = new Date(now)
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        const monthAfterNext = new Date(nextMonth)
-        monthAfterNext.setMonth(monthAfterNext.getMonth() + 1)
-        where.eventDate = {
-          gte: nextMonth,
-          lt: monthAfterNext,
-        }
-        break
-      }
-    }
-  }
-
-  /**
-   * Check if search results are cached
-   * Implements cache-first strategy for performance
-   */
-  async getCachedResults(cacheKey: string): Promise<SearchResult | null> {
-    try {
-      const cached = await cacheService.get<SearchResult>(cacheKey)
-      if (cached) {
-        return {
-          ...cached,
-          source: 'cache',
-          cachedAt: new Date(),
-        }
-      }
-      return null
-    } catch (error) {
-      console.error('Cache retrieval error:', error)
-      return null
-    }
-  }
-
-  /**
-   * Cache search results with appropriate TTL
-   * Implements smart caching strategy
-   */
-  async cacheResults(cacheKey: string, results: SearchResult, ttlSeconds: number = 3600): Promise<void> {
-    try {
-      await cacheService.set(cacheKey, results, ttlSeconds)
-    } catch (error) {
-      console.error('Cache storage error:', error)
-      // Don't throw - caching failure shouldn't break search
-    }
-  }
-
-  /**
-   * Generate cache key for search query
-   * Ensures consistent cache key generation with sanitization
-   */
-  generateCacheKey(query: string, filters: SearchFilters): string {
-    // Sanitize query to prevent cache pollution
-    const sanitizedQuery = query.replace(/[^a-zA-Z0-9\s-]/g, '').trim()
-    const filterString = JSON.stringify(filters)
-    return `search:${sanitizedQuery}:${filterString}`
-  }
-}
-
-// Export singleton instance
-export const searchService = new SearchService()
-
-
-export interface SearchFilters {
-  city?: string
-  eventType?: string
-  price?: string
-  date?: string
-  platforms?: string[]
-}
-
-export interface SearchResult {
-  events: any[]
-  total: number
-  source: 'database' | 'cache'
-  cachedAt?: Date
+	return where;
 }
 
 /**
- * Database-first search service with full-text search capabilities
- * Implements PostgreSQL full-text search with proper indexing strategy
+ * Build date range filter
  */
-export class SearchService {
-  /**
-   * Search events in database with full-text search and filtering
-   * @param query - Search query string
-   * @param filters - Additional filters to apply
-   * @param limit - Maximum number of results to return
-   * @returns Search results with events and metadata
-   */
-  async searchDatabase(
-    query: string,
-    filters: SearchFilters = {},
-    limit: number = 50
-  ): Promise<SearchResult> {
-    try {
-      // Build where clause with full-text search - always filter future events
-      const now = new Date()
-      const where = this.buildSearchWhereClause(query, filters)
-      where.eventDate = { gte: now } // Only future events
-
-      // Execute search query with proper ordering - select only needed fields
-      // Use batch fetch for EventCategory to avoid N+1 (same fix as events API)
-      const [eventsRaw, total] = await Promise.all([
-        prisma.event.findMany({
-          where,
-          orderBy: [
-            { qualityScore: 'desc' },
-            { eventDate: 'asc' },
-          ],
-          take: limit,
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            eventType: true,
-            eventDate: true,
-            eventEndDate: true,
-            venueName: true,
-            venueAddress: true,
-            city: true,
-            country: true,
-            isOnline: true,
-            isFree: true,
-            priceMin: true,
-            priceMax: true,
-            currency: true,
-            organizerName: true,
-            techStack: true,
-            qualityScore: true,
-            externalUrl: true,
-            imageUrl: true,
-            sourcePlatform: true,
-          },
-        }),
-        prisma.event.count({ where }),
-      ])
-
-      // Batch fetch EventCategory to avoid N+1 queries
-      const eventIds = eventsRaw.map(e => e.id)
-      const categories = eventIds.length > 0
-        ? await prisma.eventCategory.findMany({
-            where: { eventId: { in: eventIds } },
-            select: {
-              eventId: true,
-              category: true,
-              value: true,
-            },
-          })
-        : []
-
-      // Group categories by eventId
-      const categoriesByEventId = new Map<string, Array<{ category: string; value: string }>>()
-      for (const cat of categories) {
-        if (!categoriesByEventId.has(cat.eventId)) {
-          categoriesByEventId.set(cat.eventId, [])
-        }
-        categoriesByEventId.get(cat.eventId)!.push({
-          category: cat.category,
-          value: cat.value,
-        })
-      }
-
-      // Map events with their categories
-      const events = eventsRaw.map(event => ({
-        ...event,
-        eventCategories: categoriesByEventId.get(event.id) || [],
-      }))
-
-      return {
-        events,
-        total,
-        source: 'database',
-      }
-    } catch (error: any) {
-      console.error('❌ [SEARCH] Database search error:', {
-        error: error.message,
-        stack: error.stack,
-        query,
-        filters
-      })
-      
-      // If it's a database connection error, return empty results instead of throwing
-      // This allows the search to fall back to live scraping
-      if (error.message?.includes('Can\'t reach database') || 
-          error.message?.includes('connection') ||
-          error.message?.includes('timeout')) {
-        console.warn('⚠️ [SEARCH] Database unavailable, will fall back to live scraping')
-        return {
-          events: [],
-          total: 0,
-          source: 'database',
-        }
-      }
-      
-      throw new Error(`Failed to search database: ${error.message}`)
-    }
-  }
-
-  /**
-   * Build Prisma where clause for search with full-text search
-   * Implements PostgreSQL full-text search best practices
-   */
-  private buildSearchWhereClause(query: string, filters: SearchFilters) {
-    const where: any = {
-      status: 'active',
-    }
-
-    // Full-text search implementation
-    if (query && query.trim()) {
-      const searchTerm = query.trim()
-      
-      // PostgreSQL full-text search with multiple strategies
-      where.OR = [
-        // Title contains search term (case-insensitive)
-        { title: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Description contains search term (case-insensitive)
-        { description: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Tech stack array contains search term
-        { techStack: { hasSome: [searchTerm] } },
-        
-        // Organizer name contains search term
-        { organizerName: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Venue name contains search term
-        { venueName: { contains: searchTerm, mode: 'insensitive' } },
-      ]
-    }
-
-    // Apply additional filters
-    this.applyFilters(where, filters)
-
-    return where
-  }
-
-  /**
-   * Apply additional filters to the where clause
-   * Maintains existing filtering logic from events API
-   */
-  private applyFilters(where: any, filters: SearchFilters) {
-    // City filter (case-insensitive)
-    if (filters.city && filters.city !== 'all') {
-      where.city = { equals: filters.city, mode: 'insensitive' }
-    }
-
-    // Event type filter
-    if (filters.eventType && filters.eventType !== 'all') {
-      where.eventType = filters.eventType
-    }
-
-    // Price filter
-    if (filters.price && filters.price !== 'all') {
-      if (filters.price === 'free') {
-        where.isFree = true
-      } else if (filters.price === 'paid') {
-        where.isFree = false
-      }
-    }
-
-    // Date filter
-    if (filters.date && filters.date !== 'all') {
-      this.applyDateFilter(where, filters.date)
-    }
-
-    // Platform filter
-    if (filters.platforms && filters.platforms.length > 0) {
-      where.sourcePlatform = { in: filters.platforms }
-    }
-  }
-
-  /**
-   * Apply date range filter to where clause
-   * Reuses existing date filtering logic
-   */
-  private applyDateFilter(where: any, dateFilter: string) {
-    const now = new Date()
-
-    switch (dateFilter) {
-      case 'today': {
-        const tomorrow = new Date(now)
-        tomorrow.setDate(tomorrow.getDate() + 1)
-        where.eventDate = {
-          gte: now,
-          lt: tomorrow,
-        }
-        break
-      }
-      case 'thisWeek': {
-        const nextWeek = new Date(now)
-        nextWeek.setDate(nextWeek.getDate() + 7)
-        where.eventDate = {
-          gte: now,
-          lt: nextWeek,
-        }
-        break
-      }
-      case 'thisMonth': {
-        const nextMonth = new Date(now)
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        where.eventDate = {
-          gte: now,
-          lt: nextMonth,
-        }
-        break
-      }
-      case 'nextMonth': {
-        const nextMonth = new Date(now)
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        const monthAfterNext = new Date(nextMonth)
-        monthAfterNext.setMonth(monthAfterNext.getMonth() + 1)
-        where.eventDate = {
-          gte: nextMonth,
-          lt: monthAfterNext,
-        }
-        break
-      }
-    }
-  }
-
-  /**
-   * Check if search results are cached
-   * Implements cache-first strategy for performance
-   */
-  async getCachedResults(cacheKey: string): Promise<SearchResult | null> {
-    try {
-      const cached = await cacheService.get<SearchResult>(cacheKey)
-      if (cached) {
-        return {
-          ...cached,
-          source: 'cache',
-          cachedAt: new Date(),
-        }
-      }
-      return null
-    } catch (error) {
-      console.error('Cache retrieval error:', error)
-      return null
-    }
-  }
-
-  /**
-   * Cache search results with appropriate TTL
-   * Implements smart caching strategy
-   */
-  async cacheResults(cacheKey: string, results: SearchResult, ttlSeconds: number = 3600): Promise<void> {
-    try {
-      await cacheService.set(cacheKey, results, ttlSeconds)
-    } catch (error) {
-      console.error('Cache storage error:', error)
-      // Don't throw - caching failure shouldn't break search
-    }
-  }
-
-  /**
-   * Generate cache key for search query
-   * Ensures consistent cache key generation with sanitization
-   */
-  generateCacheKey(query: string, filters: SearchFilters): string {
-    // Sanitize query to prevent cache pollution
-    const sanitizedQuery = query.replace(/[^a-zA-Z0-9\s-]/g, '').trim()
-    const filterString = JSON.stringify(filters)
-    return `search:${sanitizedQuery}:${filterString}`
-  }
-}
-
-// Export singleton instance
-export const searchService = new SearchService()
-
-
-
-
-export interface SearchFilters {
-  city?: string
-  eventType?: string
-  price?: string
-  date?: string
-  platforms?: string[]
-}
-
-export interface SearchResult {
-  events: any[]
-  total: number
-  source: 'database' | 'cache'
-  cachedAt?: Date
+function buildDateFilter(
+	dateFilter: string,
+	now: Date,
+): DateTimeFilter | null {
+	switch (dateFilter) {
+		case "today": {
+			const tomorrow = new Date(now);
+			tomorrow.setDate(tomorrow.getDate() + 1);
+			return {
+				gte: now,
+				lt: tomorrow,
+			};
+		}
+		case "thisWeek": {
+			const nextWeek = new Date(now);
+			nextWeek.setDate(nextWeek.getDate() + 7);
+			return {
+				gte: now,
+				lt: nextWeek,
+			};
+		}
+		case "thisMonth": {
+			const nextMonth = new Date(now);
+			nextMonth.setMonth(nextMonth.getMonth() + 1);
+			return {
+				gte: now,
+				lt: nextMonth,
+			};
+		}
+		case "nextMonth": {
+			const nextMonth = new Date(now);
+			nextMonth.setMonth(nextMonth.getMonth() + 1);
+			const monthAfterNext = new Date(nextMonth);
+			monthAfterNext.setMonth(monthAfterNext.getMonth() + 1);
+			return {
+				gte: nextMonth,
+				lt: monthAfterNext,
+			};
+		}
+		default:
+			return null;
+	}
 }
 
 /**
- * Database-first search service with full-text search capabilities
- * Implements PostgreSQL full-text search with proper indexing strategy
+ * Search events in database with full-text search and filtering
  */
-export class SearchService {
-  /**
-   * Search events in database with full-text search and filtering
-   * @param query - Search query string
-   * @param filters - Additional filters to apply
-   * @param limit - Maximum number of results to return
-   * @returns Search results with events and metadata
-   */
-  async searchDatabase(
-    query: string,
-    filters: SearchFilters = {},
-    limit: number = 50
-  ): Promise<SearchResult> {
-    try {
-      // Build where clause with full-text search - always filter future events
-      const now = new Date()
-      const where = this.buildSearchWhereClause(query, filters)
-      where.eventDate = { gte: now } // Only future events
+export async function searchDatabase(
+	query: string | undefined,
+	filters: SearchFilters = {},
+	limit: number = 50,
+): Promise<SearchResult> {
+	const now = new Date();
+	const where = buildSearchWhereClause(query, filters, now);
 
-      // Execute search query with proper ordering - select only needed fields
-      // Use batch fetch for EventCategory to avoid N+1 (same fix as events API)
-      const [eventsRaw, total] = await Promise.all([
-        prisma.event.findMany({
-          where,
-          orderBy: [
-            { qualityScore: 'desc' },
-            { eventDate: 'asc' },
-          ],
-          take: limit,
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            eventType: true,
-            eventDate: true,
-            eventEndDate: true,
-            venueName: true,
-            venueAddress: true,
-            city: true,
-            country: true,
-            isOnline: true,
-            isFree: true,
-            priceMin: true,
-            priceMax: true,
-            currency: true,
-            organizerName: true,
-            techStack: true,
-            qualityScore: true,
-            externalUrl: true,
-            imageUrl: true,
-            sourcePlatform: true,
-          },
-        }),
-        prisma.event.count({ where }),
-      ])
+	// Execute search query with proper ordering
+	// Type assertion needed because Prisma types aren't available in build context
+	const [eventsRaw, total] = await Promise.all([
+		prisma.event.findMany({
+			where: where as any,
+			orderBy: [{ qualityScore: "desc" }, { eventDate: "asc" }],
+			take: limit,
+			select: EVENT_SELECT,
+		}),
+		prisma.event.count({ where: where as any }),
+	]);
 
-      // Batch fetch EventCategory to avoid N+1 queries
-      const eventIds = eventsRaw.map(e => e.id)
-      const categories = eventIds.length > 0
-        ? await prisma.eventCategory.findMany({
-            where: { eventId: { in: eventIds } },
-            select: {
-              eventId: true,
-              category: true,
-              value: true,
-            },
-          })
-        : []
+	// Batch fetch EventCategory to avoid N+1 queries
+	const eventIds = eventsRaw.map((e: EventWithSelectedFields) => e.id);
+	const categories =
+		eventIds.length > 0
+			? await prisma.eventCategory.findMany({
+					where: { eventId: { in: eventIds } },
+					select: {
+						eventId: true,
+						category: true,
+						value: true,
+					},
+				})
+			: [];
 
-      // Group categories by eventId
-      const categoriesByEventId = new Map<string, Array<{ category: string; value: string }>>()
-      for (const cat of categories) {
-        if (!categoriesByEventId.has(cat.eventId)) {
-          categoriesByEventId.set(cat.eventId, [])
-        }
-        categoriesByEventId.get(cat.eventId)!.push({
-          category: cat.category,
-          value: cat.value,
-        })
-      }
+	// Group categories by eventId
+	const categoriesByEventId = new Map<
+		string,
+		Array<{ category: string; value: string }>
+	>();
+	for (const cat of categories) {
+		if (!categoriesByEventId.has(cat.eventId)) {
+			categoriesByEventId.set(cat.eventId, []);
+		}
+		categoriesByEventId.get(cat.eventId)!.push({
+			category: cat.category,
+			value: cat.value,
+		});
+	}
 
-      // Map events with their categories
-      const events = eventsRaw.map(event => ({
-        ...event,
-        eventCategories: categoriesByEventId.get(event.id) || [],
-      }))
+	// Map events with their categories
+	const events = eventsRaw.map((event: EventWithSelectedFields) => ({
+		...event,
+		eventCategories: categoriesByEventId.get(event.id) || [],
+	}));
 
-      return {
-        events,
-        total,
-        source: 'database',
-      }
-    } catch (error: any) {
-      console.error('❌ [SEARCH] Database search error:', {
-        error: error.message,
-        stack: error.stack,
-        query,
-        filters
-      })
-      
-      // If it's a database connection error, return empty results instead of throwing
-      // This allows the search to fall back to live scraping
-      if (error.message?.includes('Can\'t reach database') || 
-          error.message?.includes('connection') ||
-          error.message?.includes('timeout')) {
-        console.warn('⚠️ [SEARCH] Database unavailable, will fall back to live scraping')
-        return {
-          events: [],
-          total: 0,
-          source: 'database',
-        }
-      }
-      
-      throw new Error(`Failed to search database: ${error.message}`)
-    }
-  }
-
-  /**
-   * Build Prisma where clause for search with full-text search
-   * Implements PostgreSQL full-text search best practices
-   */
-  private buildSearchWhereClause(query: string, filters: SearchFilters) {
-    const where: any = {
-      status: 'active',
-    }
-
-    // Full-text search implementation
-    if (query && query.trim()) {
-      const searchTerm = query.trim()
-      
-      // PostgreSQL full-text search with multiple strategies
-      where.OR = [
-        // Title contains search term (case-insensitive)
-        { title: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Description contains search term (case-insensitive)
-        { description: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Tech stack array contains search term
-        { techStack: { hasSome: [searchTerm] } },
-        
-        // Organizer name contains search term
-        { organizerName: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Venue name contains search term
-        { venueName: { contains: searchTerm, mode: 'insensitive' } },
-      ]
-    }
-
-    // Apply additional filters
-    this.applyFilters(where, filters)
-
-    return where
-  }
-
-  /**
-   * Apply additional filters to the where clause
-   * Maintains existing filtering logic from events API
-   */
-  private applyFilters(where: any, filters: SearchFilters) {
-    // City filter (case-insensitive)
-    if (filters.city && filters.city !== 'all') {
-      where.city = { equals: filters.city, mode: 'insensitive' }
-    }
-
-    // Event type filter
-    if (filters.eventType && filters.eventType !== 'all') {
-      where.eventType = filters.eventType
-    }
-
-    // Price filter
-    if (filters.price && filters.price !== 'all') {
-      if (filters.price === 'free') {
-        where.isFree = true
-      } else if (filters.price === 'paid') {
-        where.isFree = false
-      }
-    }
-
-    // Date filter
-    if (filters.date && filters.date !== 'all') {
-      this.applyDateFilter(where, filters.date)
-    }
-
-    // Platform filter
-    if (filters.platforms && filters.platforms.length > 0) {
-      where.sourcePlatform = { in: filters.platforms }
-    }
-  }
-
-  /**
-   * Apply date range filter to where clause
-   * Reuses existing date filtering logic
-   */
-  private applyDateFilter(where: any, dateFilter: string) {
-    const now = new Date()
-
-    switch (dateFilter) {
-      case 'today': {
-        const tomorrow = new Date(now)
-        tomorrow.setDate(tomorrow.getDate() + 1)
-        where.eventDate = {
-          gte: now,
-          lt: tomorrow,
-        }
-        break
-      }
-      case 'thisWeek': {
-        const nextWeek = new Date(now)
-        nextWeek.setDate(nextWeek.getDate() + 7)
-        where.eventDate = {
-          gte: now,
-          lt: nextWeek,
-        }
-        break
-      }
-      case 'thisMonth': {
-        const nextMonth = new Date(now)
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        where.eventDate = {
-          gte: now,
-          lt: nextMonth,
-        }
-        break
-      }
-      case 'nextMonth': {
-        const nextMonth = new Date(now)
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        const monthAfterNext = new Date(nextMonth)
-        monthAfterNext.setMonth(monthAfterNext.getMonth() + 1)
-        where.eventDate = {
-          gte: nextMonth,
-          lt: monthAfterNext,
-        }
-        break
-      }
-    }
-  }
-
-  /**
-   * Check if search results are cached
-   * Implements cache-first strategy for performance
-   */
-  async getCachedResults(cacheKey: string): Promise<SearchResult | null> {
-    try {
-      const cached = await cacheService.get<SearchResult>(cacheKey)
-      if (cached) {
-        return {
-          ...cached,
-          source: 'cache',
-          cachedAt: new Date(),
-        }
-      }
-      return null
-    } catch (error) {
-      console.error('Cache retrieval error:', error)
-      return null
-    }
-  }
-
-  /**
-   * Cache search results with appropriate TTL
-   * Implements smart caching strategy
-   */
-  async cacheResults(cacheKey: string, results: SearchResult, ttlSeconds: number = 3600): Promise<void> {
-    try {
-      await cacheService.set(cacheKey, results, ttlSeconds)
-    } catch (error) {
-      console.error('Cache storage error:', error)
-      // Don't throw - caching failure shouldn't break search
-    }
-  }
-
-  /**
-   * Generate cache key for search query
-   * Ensures consistent cache key generation with sanitization
-   */
-  generateCacheKey(query: string, filters: SearchFilters): string {
-    // Sanitize query to prevent cache pollution
-    const sanitizedQuery = query.replace(/[^a-zA-Z0-9\s-]/g, '').trim()
-    const filterString = JSON.stringify(filters)
-    return `search:${sanitizedQuery}:${filterString}`
-  }
+	return {
+		events,
+		total,
+		source: "database",
+	};
 }
-
-// Export singleton instance
-export const searchService = new SearchService()
-
-
-export interface SearchFilters {
-  city?: string
-  eventType?: string
-  price?: string
-  date?: string
-  platforms?: string[]
-}
-
-export interface SearchResult {
-  events: any[]
-  total: number
-  source: 'database' | 'cache'
-  cachedAt?: Date
-}
-
-/**
- * Database-first search service with full-text search capabilities
- * Implements PostgreSQL full-text search with proper indexing strategy
- */
-export class SearchService {
-  /**
-   * Search events in database with full-text search and filtering
-   * @param query - Search query string
-   * @param filters - Additional filters to apply
-   * @param limit - Maximum number of results to return
-   * @returns Search results with events and metadata
-   */
-  async searchDatabase(
-    query: string,
-    filters: SearchFilters = {},
-    limit: number = 50
-  ): Promise<SearchResult> {
-    try {
-      // Build where clause with full-text search - always filter future events
-      const now = new Date()
-      const where = this.buildSearchWhereClause(query, filters)
-      where.eventDate = { gte: now } // Only future events
-
-      // Execute search query with proper ordering - select only needed fields
-      // Use batch fetch for EventCategory to avoid N+1 (same fix as events API)
-      const [eventsRaw, total] = await Promise.all([
-        prisma.event.findMany({
-          where,
-          orderBy: [
-            { qualityScore: 'desc' },
-            { eventDate: 'asc' },
-          ],
-          take: limit,
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            eventType: true,
-            eventDate: true,
-            eventEndDate: true,
-            venueName: true,
-            venueAddress: true,
-            city: true,
-            country: true,
-            isOnline: true,
-            isFree: true,
-            priceMin: true,
-            priceMax: true,
-            currency: true,
-            organizerName: true,
-            techStack: true,
-            qualityScore: true,
-            externalUrl: true,
-            imageUrl: true,
-            sourcePlatform: true,
-          },
-        }),
-        prisma.event.count({ where }),
-      ])
-
-      // Batch fetch EventCategory to avoid N+1 queries
-      const eventIds = eventsRaw.map(e => e.id)
-      const categories = eventIds.length > 0
-        ? await prisma.eventCategory.findMany({
-            where: { eventId: { in: eventIds } },
-            select: {
-              eventId: true,
-              category: true,
-              value: true,
-            },
-          })
-        : []
-
-      // Group categories by eventId
-      const categoriesByEventId = new Map<string, Array<{ category: string; value: string }>>()
-      for (const cat of categories) {
-        if (!categoriesByEventId.has(cat.eventId)) {
-          categoriesByEventId.set(cat.eventId, [])
-        }
-        categoriesByEventId.get(cat.eventId)!.push({
-          category: cat.category,
-          value: cat.value,
-        })
-      }
-
-      // Map events with their categories
-      const events = eventsRaw.map(event => ({
-        ...event,
-        eventCategories: categoriesByEventId.get(event.id) || [],
-      }))
-
-      return {
-        events,
-        total,
-        source: 'database',
-      }
-    } catch (error: any) {
-      console.error('❌ [SEARCH] Database search error:', {
-        error: error.message,
-        stack: error.stack,
-        query,
-        filters
-      })
-      
-      // If it's a database connection error, return empty results instead of throwing
-      // This allows the search to fall back to live scraping
-      if (error.message?.includes('Can\'t reach database') || 
-          error.message?.includes('connection') ||
-          error.message?.includes('timeout')) {
-        console.warn('⚠️ [SEARCH] Database unavailable, will fall back to live scraping')
-        return {
-          events: [],
-          total: 0,
-          source: 'database',
-        }
-      }
-      
-      throw new Error(`Failed to search database: ${error.message}`)
-    }
-  }
-
-  /**
-   * Build Prisma where clause for search with full-text search
-   * Implements PostgreSQL full-text search best practices
-   */
-  private buildSearchWhereClause(query: string, filters: SearchFilters) {
-    const where: any = {
-      status: 'active',
-    }
-
-    // Full-text search implementation
-    if (query && query.trim()) {
-      const searchTerm = query.trim()
-      
-      // PostgreSQL full-text search with multiple strategies
-      where.OR = [
-        // Title contains search term (case-insensitive)
-        { title: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Description contains search term (case-insensitive)
-        { description: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Tech stack array contains search term
-        { techStack: { hasSome: [searchTerm] } },
-        
-        // Organizer name contains search term
-        { organizerName: { contains: searchTerm, mode: 'insensitive' } },
-        
-        // Venue name contains search term
-        { venueName: { contains: searchTerm, mode: 'insensitive' } },
-      ]
-    }
-
-    // Apply additional filters
-    this.applyFilters(where, filters)
-
-    return where
-  }
-
-  /**
-   * Apply additional filters to the where clause
-   * Maintains existing filtering logic from events API
-   */
-  private applyFilters(where: any, filters: SearchFilters) {
-    // City filter (case-insensitive)
-    if (filters.city && filters.city !== 'all') {
-      where.city = { equals: filters.city, mode: 'insensitive' }
-    }
-
-    // Event type filter
-    if (filters.eventType && filters.eventType !== 'all') {
-      where.eventType = filters.eventType
-    }
-
-    // Price filter
-    if (filters.price && filters.price !== 'all') {
-      if (filters.price === 'free') {
-        where.isFree = true
-      } else if (filters.price === 'paid') {
-        where.isFree = false
-      }
-    }
-
-    // Date filter
-    if (filters.date && filters.date !== 'all') {
-      this.applyDateFilter(where, filters.date)
-    }
-
-    // Platform filter
-    if (filters.platforms && filters.platforms.length > 0) {
-      where.sourcePlatform = { in: filters.platforms }
-    }
-  }
-
-  /**
-   * Apply date range filter to where clause
-   * Reuses existing date filtering logic
-   */
-  private applyDateFilter(where: any, dateFilter: string) {
-    const now = new Date()
-
-    switch (dateFilter) {
-      case 'today': {
-        const tomorrow = new Date(now)
-        tomorrow.setDate(tomorrow.getDate() + 1)
-        where.eventDate = {
-          gte: now,
-          lt: tomorrow,
-        }
-        break
-      }
-      case 'thisWeek': {
-        const nextWeek = new Date(now)
-        nextWeek.setDate(nextWeek.getDate() + 7)
-        where.eventDate = {
-          gte: now,
-          lt: nextWeek,
-        }
-        break
-      }
-      case 'thisMonth': {
-        const nextMonth = new Date(now)
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        where.eventDate = {
-          gte: now,
-          lt: nextMonth,
-        }
-        break
-      }
-      case 'nextMonth': {
-        const nextMonth = new Date(now)
-        nextMonth.setMonth(nextMonth.getMonth() + 1)
-        const monthAfterNext = new Date(nextMonth)
-        monthAfterNext.setMonth(monthAfterNext.getMonth() + 1)
-        where.eventDate = {
-          gte: nextMonth,
-          lt: monthAfterNext,
-        }
-        break
-      }
-    }
-  }
-
-  /**
-   * Check if search results are cached
-   * Implements cache-first strategy for performance
-   */
-  async getCachedResults(cacheKey: string): Promise<SearchResult | null> {
-    try {
-      const cached = await cacheService.get<SearchResult>(cacheKey)
-      if (cached) {
-        return {
-          ...cached,
-          source: 'cache',
-          cachedAt: new Date(),
-        }
-      }
-      return null
-    } catch (error) {
-      console.error('Cache retrieval error:', error)
-      return null
-    }
-  }
-
-  /**
-   * Cache search results with appropriate TTL
-   * Implements smart caching strategy
-   */
-  async cacheResults(cacheKey: string, results: SearchResult, ttlSeconds: number = 3600): Promise<void> {
-    try {
-      await cacheService.set(cacheKey, results, ttlSeconds)
-    } catch (error) {
-      console.error('Cache storage error:', error)
-      // Don't throw - caching failure shouldn't break search
-    }
-  }
-
-  /**
-   * Generate cache key for search query
-   * Ensures consistent cache key generation with sanitization
-   */
-  generateCacheKey(query: string, filters: SearchFilters): string {
-    // Sanitize query to prevent cache pollution
-    const sanitizedQuery = query.replace(/[^a-zA-Z0-9\s-]/g, '').trim()
-    const filterString = JSON.stringify(filters)
-    return `search:${sanitizedQuery}:${filterString}`
-  }
-}
-
-// Export singleton instance
-export const searchService = new SearchService()
-
