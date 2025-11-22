@@ -1,227 +1,108 @@
-'use client'
+"use client";
 
-import { useState, useMemo } from "react";
+import { Calendar, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Header } from "@/components/Header";
-import { EventCard } from "@/components/EventCard";
-import { EventDialog } from "@/components/EventDialog";
+import { useState } from "react";
 import { BottomNavigation } from "@/components/BottomNavigation";
-import { HeroSection } from "@/components/HeroSection";
+import { DiscoverEventsSection } from "@/components/DiscoverEventsSection";
 import { FeaturedEvents } from "@/components/FeaturedEvents";
 import { Footer } from "@/components/Footer";
-import { useEvents, Event } from "@/hooks/useEvents";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 export default function HomePage() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState("home");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [quickFilter, setQuickFilter] = useState("all");
+	const router = useRouter();
+	const [activeTab] = useState("home");
+	const [date, setDate] = useState("");
+	const [searchQuery, setSearchQuery] = useState("");
 
-  const { events: dbEvents, isLoading } = useEvents();
+	const handleSearch = () => {
+		// Navigate to events page with search params
+		const params = new URLSearchParams();
+		if (searchQuery.trim()) params.set("q", searchQuery.trim());
+		if (date.trim()) params.set("date", date.trim());
+		router.push(`/events?${params.toString()}`);
+	};
 
-  const quickFilters = [
-    { label: "All", value: "all" },
-    { label: "This Week", value: "this-week" },
-    { label: "This Month", value: "this-month" },
-    { label: "Free Events", value: "free" },
-  ];
+	return (
+		<div className="min-h-screen bg-background">
+			<Header />
 
-  // Map database events to component format
-  const events = useMemo(() => {
-    return dbEvents.map((event: Event) => {
-      const sourceMap: Record<string, 'Eventbrite' | 'Luma' | 'Meetup'> = {
-        'eventbrite': 'Eventbrite',
-        'luma': 'Luma',
-        'meetup': 'Meetup',
-      };
-      
-      return {
-        id: event.id,
-        title: event.title,
-        date: new Date(event.eventDate).toLocaleDateString(),
-        time: new Date(event.eventDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        location: event.isOnline ? 'Online' : event.venueName || event.city || 'TBD',
-        city: event.city || 'TBD',
-        neighborhood: event.venueAddress || '',
-        eventType: (event.eventType || 'meetup') as 'conference' | 'hackathon' | 'meetup' | 'networking' | 'workshop',
-        price: event.isFree ? 'Free' : `$${event.priceMin || 0}`,
-        image: event.imageUrl || '/placeholder.svg',
-        imageUrl: event.imageUrl || '/placeholder.svg',
-        organizerRating: event.organizerRating || 4.5,
-        attendees: event.registeredCount,
-        maxAttendees: event.capacity || 100,
-        techStack: event.techStack,
-        description: event.description || '',
-        organizer: event.organizerName || 'Unknown',
-        registrationUrl: event.externalUrl,
-        venue: event.venueName || 'TBD',
-        capacity: event.capacity || 100,
-        source: sourceMap[event.sourcePlatform] || 'Luma',
-        sourceUrl: event.externalUrl,
-        isPastEvent: new Date(event.eventDate) < new Date(),
-        upcomingDate: new Date(event.eventDate).toISOString(),
-        isOnline: event.isOnline,
-        isSoldOut: event.status === 'sold_out',
-        registrationDeadline: event.eventDate,
-        qualityScore: event.qualityScore || 0,
-      };
-    });
-  }, [dbEvents]);
+			<main className="pb-20 md:pb-8">
+				{/* Hero Section */}
+				<div className="relative min-h-[600px] md:min-h-[700px] flex items-center justify-center overflow-hidden">
+					{/* Background with gradient overlay */}
+					<div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-background">
+						<div
+							className="absolute inset-0 opacity-20"
+							style={{
+								backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+							}}
+						></div>
+					</div>
 
-  const filteredEvents = useMemo(() => {
-    let filtered = events;
-    
-    // Apply quick filter
-    if (quickFilter === "this-week") {
-      const now = new Date();
-      const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      filtered = filtered.filter((event: any) => {
-        const eventDate = new Date(event.date);
-        return eventDate >= now && eventDate <= weekFromNow;
-      });
-    } else if (quickFilter === "this-month") {
-      const now = new Date();
-      const monthFromNow = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-      filtered = filtered.filter((event: any) => {
-        const eventDate = new Date(event.date);
-        return eventDate >= now && eventDate <= monthFromNow;
-      });
-    } else if (quickFilter === "free") {
-      filtered = filtered.filter((event: any) => event.price === "Free");
-    }
-    
-    return filtered;
-  }, [events, quickFilter]);
+					{/* Content */}
+					<div className="relative z-10 w-full max-w-7xl mx-auto px-6 py-20">
+						{/* Hero Text */}
+						<div className="text-center mb-12">
+							<p className="text-muted-foreground text-lg md:text-xl mb-3 font-medium">
+								Best tech events made for you in mind!
+							</p>
+							<h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold mb-4 text-foreground">
+								Discover Amazing
+								<span className="block text-primary">Tech Events</span>
+							</h1>
+							<p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto">
+								Find workshops, conferences, and meetups that matter to you
+							</p>
+						</div>
 
-  // Show only 2 rows (8 events for 4 columns, 6 for 3 columns, etc.)
-  const displayedEvents = filteredEvents.slice(0, 8);
+						<div className="max-w-4xl mx-auto mb-16">
+							<div className="bg-card rounded-xl md:rounded-2xl shadow-card p-2 md:p-3 flex flex-col md:flex-row gap-2 md:gap-3 border border-border">
+								<div className="relative flex-1">
+									<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+									<Input
+										type="text"
+										placeholder="Search events, technologies..."
+										value={searchQuery}
+										onChange={(e) => setSearchQuery(e.target.value)}
+										onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+										className="pl-10 h-12 md:h-14 text-base border-0 bg-surface focus-visible:ring-2 focus-visible:ring-primary/20"
+									/>
+								</div>
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Header 
-        onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-      />
-      
-      <main className="pb-20 md:pb-8">
-        {/* Hero Section */}
-        <HeroSection />
+								{/* Date Input */}
+								<div className="relative flex-1">
+									<Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+									<Input
+										type="date"
+										value={date}
+										onChange={(e) => setDate(e.target.value)}
+										onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+										className="pl-10 h-12 md:h-14 text-base border-0 bg-surface focus-visible:ring-2 focus-visible:ring-primary/20"
+									/>
+								</div>
 
-        {/* Featured Events Section - ARKLYTE Style */}
-        <FeaturedEvents />
+								{/* Search Button */}
+								<Button
+									onClick={handleSearch}
+									className="h-12 md:h-14 px-8 md:px-12 bg-primary hover:bg-primary-hover text-primary-foreground rounded-doow-sm md:rounded-doow-md font-semibold text-base shadow-lg hover:shadow-xl transition-all"
+								>
+									<Search className="h-5 w-5 mr-2" />
+									Search
+								</Button>
+							</div>
+						</div>
+					</div>
+				</div>
 
-        {/* Main Content - ARKLYTE Style "Suggestions for discovery" */}
-        <div className="max-w-7xl mx-auto px-6 pt-spacing-section pb-spacing-section">
-          {/* Section Header with View All Button */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="font-heading text-2xl md:text-3xl font-bold mb-2 text-foreground">
-                Discover Events
-              </h2>
-              <p className="text-muted-foreground text-base md:text-lg">
-                Popular events recommended for you
-              </p>
-            </div>
-            <Link href="/events">
-              <Button 
-                variant="outline" 
-                className="border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-doow-sm md:rounded-doow-md"
-              >
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
+				<FeaturedEvents />
+				<DiscoverEventsSection />
+			</main>
 
-          {/* Quick Filters - ARKLYTE Style (Left side) */}
-          <div className="flex items-center gap-3 mb-6 flex-wrap">
-            {quickFilters.map((filter) => (
-              <button
-                key={filter.value}
-                onClick={() => setQuickFilter(filter.value)}
-                className={`px-4 py-2 rounded-doow-sm md:rounded-doow-md text-sm font-medium transition-all ${
-                  quickFilter === filter.value
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'bg-surface text-muted-foreground hover:bg-surface-hover hover:text-foreground'
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Events Grid - 2 Rows Only */}
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <Card key={i} className="rounded-lg overflow-hidden">
-                  <div className="p-0">
-                    <Skeleton className="h-56 w-full" />
-                    <div className="p-5 space-y-3">
-                      <Skeleton className="h-6 w-full" />
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {displayedEvents.map((event: any) => (
-                  <EventCard 
-                    key={event.id} 
-                    event={event} 
-                    onClick={() => {
-                      setSelectedEvent(event);
-                      setIsDialogOpen(true);
-                    }}
-                  />
-                ))}
-              </div>
-              {filteredEvents.length > 8 && (
-                <div className="mt-8 text-center">
-                  <Link href="/events">
-                    <Button 
-                      variant="outline" 
-                      className="border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-doow-sm md:rounded-doow-md"
-                    >
-                      View All Events ({filteredEvents.length})
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Event Details Dialog */}
-          <EventDialog 
-            event={selectedEvent}
-            open={isDialogOpen}
-            onOpenChange={setIsDialogOpen}
-          />
-
-          {filteredEvents.length === 0 && !isLoading && (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground text-lg mb-2">No events found matching your filters.</p>
-              <p className="text-muted-foreground-light">Try adjusting your search criteria.</p>
-            </div>
-          )}
-        </div>
-      </main>
-
-      <Footer />
-
-      <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-    </div>
-  );
+			<Footer />
+			<BottomNavigation activeTab={activeTab} onTabChange={() => {}} />
+		</div>
+	);
 }
-

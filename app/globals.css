@@ -2,108 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tech Event Vista Design System - ARKLYTE Structure + Luma Colors + ARKLYTE Accents */
 
 @layer base {
   :root {
-    /* Base Colors - Luma's Light Theme */
-    --background: 210 14% 97%;  /* #F7F8F9 - Luma's light gray background */
-    --foreground: 210 20% 7%;   /* #131517 - Luma's dark text */
+    --background: 210 14% 97%;
+    --foreground: 210 20% 7%;
     
-    --card: 0 0% 100%;          /* #FFFFFF - White cards */
-    --card-foreground: 210 20% 7%;  /* Dark text on cards */
+    --card: 0 0% 100%;
+    --card-foreground: 210 20% 7%;
     
-    --popover: 0 0% 100%;       /* White popovers */
+    --popover: 0 0% 100%;
     --popover-foreground: 210 20% 7%;
     
-    /* Primary - ARKLYTE's Pink (#F31A7C) */
-    --primary: 336 90% 53%;     /* ARKLYTE pink for CTAs */
-    --primary-foreground: 0 0% 100%;  /* White text on pink */
-    --primary-hover: 336 85% 48%;     /* Darker pink for hover */
+    --primary: 336 90% 53%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 336 85% 48%;
     
-    /* Secondary - White with border */
-    --secondary: 0 0% 100%;     /* White */
-    --secondary-foreground: 210 20% 7%;  /* Dark text */
+    --secondary: 0 0% 100%;
+    --secondary-foreground: 210 20% 7%;
     
-    /* Muted - Luma's opacity system */
-    --muted: 210 14% 97%;       /* Light gray */
-    --muted-foreground: 210 20% 40%;  /* 64% opacity text */
-    --muted-foreground-light: 210 20% 60%;  /* 36% opacity text */
+    --muted: 210 14% 97%;
+    --muted-foreground: 210 20% 40%;
+    --muted-foreground-light: 210 20% 60%;
     
-    /* Accent - ARKLYTE's Blue (#3659E3) */
-    --accent: 228 78% 60%;      /* ARKLYTE blue for links */
-    --accent-foreground: 0 0% 100%;  /* White text */
-    --accent-hover: 228 75% 55%;     /* Darker blue for hover */
+    --accent: 228 78% 60%;
+    --accent-foreground: 0 0% 100%;
+    --accent-hover: 228 75% 55%;
     
-    /* Destructive */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     
-    /* Borders - Luma's subtle borders */
-    --border: 210 20% 7%;       /* Base color */
-    --border-opacity: 0.08;     /* 8% opacity for subtle borders */
-    --border-hover: 210 20% 7%; /* Base color */
-    --border-hover-opacity: 0.36; /* 36% opacity on hover */
+    --border: 210 20% 7%;
+    --border-opacity: 0.08;
+    --border-hover: 210 20% 7%;
+    --border-hover-opacity: 0.36;
     --input: 210 20% 7%;
     --input-opacity: 0.08;
-    --ring: 336 90% 53%;        /* Pink focus ring */
+    --ring: 336 90% 53%;
     
-    /* Border Radius - Doow pattern */
-    --radius: 0.5rem;           /* 8px - base radius (Doow uses 0.5rem) */
+    --radius: 0.5rem;
     
-    /* Surface Colors */
-    --surface: 0 0% 100%;      /* White surfaces */
-    --surface-hover: 210 14% 97%;  /* Light gray on hover */
-    --surface-active: 210 14% 94%;  /* Slightly darker on active */
+    --surface: 0 0% 100%;
+    --surface-hover: 210 14% 97%;
+    --surface-active: 210 14% 94%;
     
-    /* Status Colors - ARKLYTE inspired */
-    --success: 142 36% 58%;     /* #8BA290 - ARKLYTE green */
-    --warning: 45 85% 75%;      /* #F8DE87 - ARKLYTE yellow */
-    --info: 199 58% 65%;        /* #71B4D5 - ARKLYTE blue */
+    --success: 142 36% 58%;
+    --warning: 45 85% 75%;
+    --info: 199 58% 65%;
     
-    /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(336 90% 53%), hsl(336 85% 48%));
     --gradient-accent: linear-gradient(135deg, hsl(228 78% 60%), hsl(228 75% 55%));
     --gradient-surface: linear-gradient(135deg, hsl(210 14% 97%), hsl(210 14% 94%));
     
-    /* Shadows - Eventbrite's Subtle Approach */
     --shadow-sm: 0 1px 2px 0 rgba(40, 44, 53, 0.05);
     --shadow-md: 0 2px 4px 0 rgba(40, 44, 53, 0.08);
     --shadow-lg: 0 4px 8px 0 rgba(40, 44, 53, 0.1);
     --shadow-card: rgba(40, 44, 53, 0.1) 0px 1px 20px 0px, rgba(40, 44, 53, 0.1) 0px 2px 5px 0px;
     --shadow-card-hover: rgba(40, 44, 53, 0.15) 0px 2px 24px 0px, rgba(40, 44, 53, 0.15) 0px 4px 8px 0px;
-    --shadow-glow: 0 0 20px hsl(336 90% 53% / 0.2);  /* Pink glow */
+    --shadow-glow: 0 0 20px hsl(336 90% 53% / 0.2);
     
-    /* Typography - Luma's System Fonts */
     --font-heading: -apple-system, BlinkMacSystemFont, "Apple Color Emoji", Inter, Roboto, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
     --font-body: -apple-system, BlinkMacSystemFont, "Apple Color Emoji", Inter, Roboto, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
     
-    /* Font Sizes - Luma + ARKLYTE */
-    --font-size-h1: 2rem;       /* 32px - Hero titles */
-    --font-size-h2: 1.5rem;     /* 24px - Section titles */
-    --font-size-h3: 1.125rem;  /* 18px - Card titles */
-    --font-size-body: 1rem;     /* 16px - Body text */
-    --font-size-button: 0.875rem; /* 14px - Button text */
-    --font-size-small: 0.75rem; /* 12px - Small text */
+    --font-size-h1: 2rem;
+    --font-size-h2: 1.5rem;
+    --font-size-h3: 1.125rem;
+    --font-size-body: 1rem;
+    --font-size-button: 0.875rem;
+    --font-size-small: 0.75rem;
     
-    /* Font Weights */
     --font-weight-normal: 400;
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
     --font-weight-bold: 700;
     
-    /* Letter Spacing */
     --letter-spacing-tight: -0.025em;
     --letter-spacing-normal: 0;
     --letter-spacing-wide: 0.025em;
     
-    /* Spacing - Luma's Generous Approach */
-    --spacing-section: 5rem;    /* 80px - Between major sections */
-    --spacing-content: 2.5rem;  /* 40px - Within sections */
-    --spacing-card: 1.5rem;     /* 24px - Between cards */
-    --spacing-internal: 1rem;   /* 16px - Inside cards */
+    --spacing-section: 5rem;
+    --spacing-content: 2.5rem;
+    --spacing-card: 1.5rem;
+    --spacing-internal: 1rem;
     
-    /* Sidebar (if needed) */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 210 20% 7%;
     --sidebar-primary: 210 20% 7%;
