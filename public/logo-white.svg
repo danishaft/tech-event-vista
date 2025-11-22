@@ -1,0 +1,28 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Round container with white background and gradient border -->
+  <circle cx="16" cy="16" r="15" fill="white" stroke="url(#gradient)" stroke-width="1.5"/>
+  
+  <!-- Bold minimalist "R" monogram - smaller size -->
+  <path d="M11 9V23" 
+        stroke="url(#gradient)" 
+        stroke-width="2.2" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  <path d="M11 9H17.5C18.8807 9 20 10.1193 20 11.5C20 12.8807 18.8807 14 17.5 14H11" 
+        stroke="url(#gradient)" 
+        stroke-width="2.2" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  <path d="M11 14L16.5 19.5L20.5 23" 
+        stroke="url(#gradient)" 
+        stroke-width="2.2" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="hsl(336, 90%, 53%)"/>
+      <stop offset="100%" stop-color="hsl(336, 85%, 48%)"/>
+    </linearGradient>
+  </defs>
+</svg>
