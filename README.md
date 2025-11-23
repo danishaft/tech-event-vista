@@ -10,8 +10,7 @@
    Discover tech events from multiple platforms with real-time scraping and intelligent search
 </p>
 
-<!-- TODO: Add main screenshot/video here showing the app interface -->
-<!-- Example: <img src="docs/main-screenshot.png" alt="Tech Event Vista UI" /> -->
+ <img src="public/db-events.png" alt="Tech Event Vista UI" /> 
 
 ## How It Works
 
@@ -22,12 +21,8 @@
 5. **Results**: View filtered events with details, pricing, and registration links
 6. **Daily Updates**: Automated cron jobs refresh event data daily at 6 AM UTC
 
-<!-- TODO: Add screenshots showing the search flow, results page, and event details -->
-<!-- Example: 
-![Search Interface](docs/search.png)
-![Event Results](docs/results.png)
-![Event Details](docs/event-details.png)
--->
+ <img src="public/live-scraping.gif" alt="Live scraping of events" /> 
+
 
 ## Quick Start
 
@@ -100,8 +95,6 @@ REDIS_URL="redis://localhost:6379"
 UPSTASH_REDIS_REST_URL="your-upstash-url"
 UPSTASH_REDIS_REST_TOKEN="your-upstash-token"
 
-# Puppeteer (for Docker)
-PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
 ```
 
 ### Manual Setup
