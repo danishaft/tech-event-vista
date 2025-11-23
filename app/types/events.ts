@@ -42,3 +42,4 @@ export type EventWithCategories = EventWithSelectedFields & {
 	eventCategories: Array<{ category: string; value: string }>;
 };
 
+

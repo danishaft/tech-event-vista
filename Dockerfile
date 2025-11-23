@@ -5,8 +5,6 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Configure npm for better network handling (fix timeout issues)
-# Based on common solutions for npm ETIMEDOUT in Docker
 RUN npm config set registry https://registry.npmjs.org/ && \
     npm config set fetch-retries 10 && \
     npm config set fetch-retry-mintimeout 30000 && \
@@ -14,7 +12,6 @@ RUN npm config set registry https://registry.npmjs.org/ && \
     npm config set fetch-timeout 600000 && \
     npm config set maxsockets 1
 
-# Install dependencies with retry logic (common fix for network issues)
 RUN npm ci --prefer-offline --no-audit || \
     (sleep 10 && npm ci --prefer-offline --no-audit) || \
     (sleep 20 && npm ci --prefer-offline --no-audit)
@@ -125,7 +122,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Default command runs Next.js app
-# Worker service will override this
 CMD ["node", "server.js"]
 

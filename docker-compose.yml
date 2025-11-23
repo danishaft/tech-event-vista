@@ -32,9 +32,7 @@ services:
     env_file:
       - .env
     environment:
-      # Override DATABASE_URL to use Docker service name
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/tech_event_vista}
-      # REDIS_URL is set via .env file (using Upstash)
     depends_on:
       postgres:
         condition: service_healthy
